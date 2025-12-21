@@ -1037,12 +1037,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
 
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, mediaPermission) == PackageManager.PERMISSION_GRANTED) {
-            // Storage permission granted. Check notification permission next.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                //requestNotificationPermission()
-            } else {
-                viewModel.loadAudioFiles(applicationContext)
-            }
+            viewModel.loadAudioFiles(applicationContext)
         } else {
             // Request storage permission
             requestStoragePermissionLauncher.launch(mediaPermission)
@@ -1054,12 +1049,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Storage granted, now check notification permission (API 33+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                //requestNotificationPermission()
-            } else {
-                viewModel.loadAudioFiles(applicationContext) // Call ViewModel to scan files
-            }
+            viewModel.loadAudioFiles(applicationContext)
         } else {
             showStatus("Storage permission denied. Cannot scan local storage.")
         }
