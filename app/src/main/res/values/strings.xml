@@ -1,3 +1,30 @@
 <resources>
-    <string name="app_name">Music Tag Editor</string>
+    // app
+    <string name="app_name">Musi</string>
+
+    // menu items
+    <string name="title_menu_rate">Rate</string>
+    <string name="title_menu_pp">Privacy Policy</string>
+    <string name="title_menu_about">About</string>
+    <string name="title_menu_help">Help</string>
+    <string name="title_menu_pro">Pro Version</string>
+    <string name="title_privacy_settings">Privacy Settings</string>
+
+    // messages
+    <string name="msg_rate_button1">Rate!</string>
+    <string name="msg_rate_button2">Nah</string>
+    <string name="ad_btn_positive">Show Me</string>
+    <string name="ad_btn_negative">No</string>
+    <string name="msg_rate_dialog_title">RATE :)</string>
+    <string name="msg_rate_dialog_body"><![CDATA[
+        Enjoying the app?\nLet me know!\n\n-MaxGreen
+    ]]></string>
+    <string name="msg_scanning_files">Scanning for audio files…</string>
+
+    // attribution
+    <string name="audio_playback_attribution">M3A Music Player</string>
+
+    // description
+    <string name="album_art_description">album art</string>
+    <string name="cd_album_art">Album Art</string>
 </resources>

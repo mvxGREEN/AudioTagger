@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="colorPrimary">@color/gmaTeal</color>
+    <color name="colorPrimaryDark">@color/gmaTealDarkMono</color>
+    <color name="colorAccent">@color/gmaTealDarkMono</color>
+
+    <color name="gmaTeal">#006883</color>
+    <color name="gmaTealDarkMono">#002b37</color>
+    <color name="gmaTealWhite">#f9feff</color>
+
+    <color name="gmaGreen">#1F6427</color>
+    <color name="gmaGreenDarkMono">#0d2a10</color>
+    <color name="gmaGreenWhite">#fafefb</color>
+    <color name="gmaPurpleCompliment">#641f5c</color>
+
+    <color name="twistedBlue">#00b1ff</color>
+    <color name="twistedLight">#ddf2ff</color>
+    <color name="twistedDark">#637899</color>
+
+    <color name="naturalPrimaryAlt">#779a75</color>
+    <color name="naturalLight">#f3fcf2</color>
+    <color name="naturalLightAlt">#fffbce</color>
+
+    <color name="mvxPink">#FF9999</color>
+    <color name="mvxPinkShadowLight">#D3FFADAD</color>
+
+    // Shadows
+    <color name="shadowInvisible">#00FFFFFF</color>
+    <color name="shadow">#69000000</color>
+    <color name="shadowDark">#83000000</color>
+    <color name="shadowDarker">#A9000000</color>
+    <color name="shadowInverseLight">#43ffffff</color>
+    <color name="shadowInverse">#93ffffff</color>
+    <color name="shadowInverseDark">#C4ffffff</color>
+
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
@@ -7,4 +40,9 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="light_gray">#F0F0F0</color>
+    <color name="grey">#DDDDDD</color>
+
+    <color name="titleColor">#181c19</color>
+    <color name="subtitleColor">#627063</color>
 </resources>
