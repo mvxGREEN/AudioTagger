@@ -79,6 +79,7 @@ import kotlin.text.orEmpty
 import kotlin.text.trim
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.isActive
 
 // REMOVED: import com.bumptech.glide.load.resource.bitmap.VideoDecoder // Removed unresolvable import
 
@@ -573,6 +574,8 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 class MusicAdapter(private val activity: MainActivity, private var musicList: List<AudioFile>, private val editListener: MusicEditListener) :
     RecyclerView.Adapter<MusicAdapter.MusicViewHolder>() {
 
+    private val imageCache = mutableMapOf<Long, ByteArray?>()
+
     // NEW: Property to track which item is currently in edit mode.
     private var editingPosition: Int = RecyclerView.NO_POSITION
 
@@ -606,7 +609,12 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
     inner class MusicViewHolder(private val binding: ItemMusicFileBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        var job: Job? = null
+
         fun bind(file: AudioFile, index: Int) {
+            // 1. CANCEL the previous job immediately so it doesn't "shuffle" art
+            job?.cancel()
+
             // alternate background colors
             if (index % 2 == 0) {
                 binding.itemCard.setCardBackgroundColor(ContextCompat.getColor(binding.itemCard.context,
@@ -658,32 +666,52 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 binding.textArtist.text = fullArtistText
             }
 
-            // Determine if we should trust the MediaStore albumId
-            val albumName = file.album?.lowercase()
-            val isProblematic = albumName == "documents" || albumName == "music" || file.albumId == 553547078986512838L
+            val cacheKey = "${file.id}_${file.dateModified}"
+            val isProblematic = file.album?.lowercase() == "music"
+                    || file.albumId == 553547078986512838L
+                    || file.artist.lowercase() == "<unknown>"
 
             if (isProblematic) {
-                // 1. Clear current image to prevent flickering
-                binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+                val cachedBytes = imageCache[file.id]
 
-                // 2. Launch a coroutine to fetch the embedded bytes
-                activity.lifecycleScope.launch {
-                    val imageBytes = getEmbeddedPicture(itemView.context, file.uri)
-
-                    // 3. Load the bytes via Glide
+                if (cachedBytes != null) {
+                    // INSTANT LOAD: No clearing, no placeholder needed, no flicker
                     Glide.with(itemView.context)
-                        .load(imageBytes) // Glide handles ByteArrays natively without VideoDecoder
+                        .load(cachedBytes)
+                        .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
                         .transform(CircleCrop())
-                        .placeholder(R.drawable.default_album_art_144px)
-                        .error(R.drawable.default_album_art_144px)
+                        .dontAnimate()
                         .into(binding.imageAlbumArt)
+                } else {
+                    // FIRST LOAD: Clear and show placeholder to avoid shuffling
+                    Glide.with(itemView.context).clear(binding.imageAlbumArt)
+                    binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+
+                    job = activity.lifecycleScope.launch {
+                        val imageBytes = getEmbeddedPicture(itemView.context, file.uri)
+                        if (imageBytes != null) {
+                            imageCache[file.id] = imageBytes // Save to cache for next time
+                        }
+
+                        if (isActive) {
+                            Glide.with(itemView.context)
+                                .load(imageBytes)
+                                .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
+                                .transform(CircleCrop())
+                                .placeholder(R.drawable.default_album_art_144px)
+                                .dontAnimate()
+                                .into(binding.imageAlbumArt)
+                        }
+                    }
                 }
             } else {
-                // Use the standard MediaStore cache for well-tagged files
+                // Standard MediaStore loading (already fast/cached by system)
                 Glide.with(itemView.context)
                     .load(getAlbumArtUri(file.albumId!!))
+                    .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
                     .transform(CircleCrop())
                     .placeholder(R.drawable.default_album_art_144px)
+                    .dontAnimate()
                     .into(binding.imageAlbumArt)
             }
 
@@ -722,9 +750,28 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
     override fun getItemCount(): Int = musicList.size
 
     fun updateList(newList: List<AudioFile>) {
-        // Update the displayed list from the ViewModel's observer
+        val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
+            override fun getOldListSize(): Int = musicList.size
+            override fun getNewListSize(): Int = newList.size
+
+            override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+                // Check if it's the same file by ID
+                return musicList[oldPos].id == newList[newPos].id
+            }
+
+            override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
+                // Check if the content (title, artist, OR modification date) changed
+                val oldItem = musicList[oldPos]
+                val newItem = newList[newPos]
+                return oldItem.title == newItem.title &&
+                        oldItem.artist == newItem.artist &&
+                        oldItem.dateModified == newItem.dateModified
+            }
+        }
+
+        val diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(diffCallback)
         musicList = newList
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     // Kept for startMusicPlayback but now unnecessary if we use the Repository directly
@@ -998,13 +1045,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     }
 
     private fun setupSwipeRefresh() {
-        // Assuming your layout binding has a property named `swipeRefreshLayout`
         binding.swipeRefreshLayout.setOnRefreshListener {
-            // 1. Clear any existing list display (optional, but good for UX)
-            musicAdapter.updateList(emptyList())
-            exitEditingMode() // Always exit edit mode on refresh
-
-            // 2. Trigger the scan to reload all data
+            // REMOVE: musicAdapter.updateList(emptyList())
+            // Keeping the list populated prevents the screen from going blank during the scan
             viewModel.loadAudioFiles(applicationContext)
         }
     }
