@@ -77,6 +77,8 @@ import kotlin.text.isBlank
 import kotlin.text.lowercase
 import kotlin.text.orEmpty
 import kotlin.text.trim
+import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 
 // REMOVED: import com.bumptech.glide.load.resource.bitmap.VideoDecoder // Removed unresolvable import
 
@@ -266,7 +268,7 @@ data class AudioFile(
  */
 fun getAlbumArtUri(albumId: Long): Uri {
     return ContentUris.withAppendedId(
-        Uri.parse("content://media/external/audio/albumart"),
+        "content://media/external/audio/albumart".toUri(),
         albumId
     )
 }
@@ -586,6 +588,18 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
         }
     }
 
+    suspend fun getEmbeddedPicture(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+        val retriever = android.media.MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            retriever.embeddedPicture // This returns the raw byte array of the image
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
+        }
+    }
+
     // NEW: Get the currently editing position
     fun getEditingPosition(): Int = editingPosition
 
@@ -644,63 +658,34 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 binding.textArtist.text = fullArtistText
             }
 
-            // 2. Album Art Loading (Unchanged)
-            // If the album name is generic ("documents" or "music"), the MediaStore's albumId cache
-            // is likely corrupted/unreliable, causing incorrect art to load.
-            // In these cases, we must force Glide to load the embedded art directly from the file URI.
+            // Determine if we should trust the MediaStore albumId
             val albumName = file.album?.lowercase()
-            val problematicAlbum = albumName == "documents" || albumName == "music"
+            val isProblematic = albumName == "documents" || albumName == "music" || file.albumId == 553547078986512838L
 
-            val imageSourceUri: Any = if (problematicAlbum) {
-                // Strategy 1: Album name is generic/problematic. Use the file URI directly,
-                // relying on Glide/Android to extract embedded art, which is the "source of truth".
-                file.uri
-            } else if (file.albumId != null) {
-                // Strategy 2: Album name is specific and albumId exists. Use the MediaStore cache URI,
-                // which is fast and reliable for correctly tagged files.
-                getAlbumArtUri(file.albumId)
+            if (isProblematic) {
+                // 1. Clear current image to prevent flickering
+                binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+
+                // 2. Launch a coroutine to fetch the embedded bytes
+                activity.lifecycleScope.launch {
+                    val imageBytes = getEmbeddedPicture(itemView.context, file.uri)
+
+                    // 3. Load the bytes via Glide
+                    Glide.with(itemView.context)
+                        .load(imageBytes) // Glide handles ByteArrays natively without VideoDecoder
+                        .transform(CircleCrop())
+                        .placeholder(R.drawable.default_album_art_144px)
+                        .error(R.drawable.default_album_art_144px)
+                        .into(binding.imageAlbumArt)
+                }
             } else {
-                // Strategy 3: Default fallback. Use the file URI.
-                file.uri
+                // Use the standard MediaStore cache for well-tagged files
+                Glide.with(itemView.context)
+                    .load(getAlbumArtUri(file.albumId!!))
+                    .transform(CircleCrop())
+                    .placeholder(R.drawable.default_album_art_144px)
+                    .into(binding.imageAlbumArt)
             }
-
-
-            // Use Glide to load the image
-            Glide.with(itemView.context)
-                .asDrawable() // Ensure we load it as a Drawable
-                .load(imageSourceUri) // Use the conditionally selected URI
-                // REMOVED: The problematic .set(VideoDecoder.SKIP_MEDIA_STORE_URI, true) call
-                .transform(CircleCrop())
-                .placeholder(R.drawable.default_album_art_144px)
-                .error(R.drawable.default_album_art_144px)
-                .addListener(object : RequestListener<Drawable> {
-                    override fun onLoadFailed(
-                        e: GlideException?,
-                        model: Any?,
-                        target: Target<Drawable>,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        // Log the failure to diagnose
-                        // Log.e("Glide", "Album Art Load Failed for URI: $imageSourceUri", e)
-                        // Note: The main goal is to suppress internal logs,
-                        // but keeping this comment for reference.
-                        return false
-                    }
-
-                    override fun onResourceReady(
-                        resource: Drawable,
-                        model: Any,
-                        target: Target<Drawable>,
-                        dataSource: DataSource,
-                        isFirstResource: Boolean
-                    ): Boolean {
-                        // On successful load, remove the tint
-                        binding.imageAlbumArt.imageTintList = null
-                        return false
-                    }
-                })
-                .into(binding.imageAlbumArt)
-            // --- FINAL FIX END ---
 
             binding.root.setOnClickListener {
                 if (!isEditing) {

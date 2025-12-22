@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,6 +51,8 @@ class MusicTagEditorActivity : AppCompatActivity() {
             binding.etArtist.setText(file.artist)
             binding.etAlbum.setText(file.album)
             binding.etGenre.setText(file.genre)
+
+            Log.i("MusicTagEditorActivity", "albumId: ${file.albumId}")
 
             Glide.with(this)
                 .load(file.albumId?.let { getAlbumArtUri(it) } ?: file.uri)
