@@ -74,36 +74,75 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
     private fun saveMetadata() {
         val file = audioFile ?: return
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // 1. Open a FileDescriptor in read-write mode
+                contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
+                    // Note: JAudiotagger works best with physical File objects.
+                    // On Scoped Storage, we must work around this by writing
+                    // to a temporary file and then copying it back,
+                    // or using a library version that supports FileDescriptors.
+
+                    // For simplicity in this example, we'll use a temp file strategy:
+                    val tempFile = java.io.File(cacheDir, "temp_audio.mp3")
+
+                    // Copy original to temp
+                    contentResolver.openInputStream(file.uri)?.use { input ->
+                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+
+                    // 2. Use JAudiotagger to edit the temp file
+                    val audioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
+                    val tag = audioFile.tagOrCreateAndSetDefault
+
+                    tag.setField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
+                    tag.setField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
+                    tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
+                    tag.setField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
+
+                    audioFile.commit()
+
+                    // 3. Write the temp file back to the original URI
+                    contentResolver.openOutputStream(file.uri, "wt")?.use { output ->
+                        tempFile.inputStream().use { input -> input.copyTo(output) }
+                    }
+
+                    tempFile.delete()
+                }
+
+                // 4. Force MediaStore to re-scan the file so the UI updates
+                updateMediaStoreRecord(file)
+
+            } catch (e: Exception) {
+                Log.e("MusicTagEditorActivity", "JAudiotagger Error: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MusicTagEditorActivity, "Failed to write tags", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private suspend fun updateMediaStoreRecord(file: AudioFile) {
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.TITLE, binding.etTitle.text.toString())
             put(MediaStore.Audio.Media.ARTIST, binding.etArtist.text.toString())
             put(MediaStore.Audio.Media.ALBUM, binding.etAlbum.text.toString())
             put(MediaStore.Audio.Media.GENRE, binding.etGenre.text.toString())
-            put(MediaStore.Audio.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val rows = contentResolver.update(file.uri, values, null, null)
-                withContext(Dispatchers.Main) {
-                    if (rows > 0) {
-                        Toast.makeText(this@MusicTagEditorActivity, "Saved!", Toast.LENGTH_SHORT).show()
-                        // Update Repository so MainActivity reflects changes
-                        val updated = file.copy(
-                            title = binding.etTitle.text.toString(),
-                            artist = binding.etArtist.text.toString(),
-                            album = binding.etAlbum.text.toString(),
-                            genre = binding.etGenre.text.toString()
-                        )
-                        PlaylistRepository.updateFile(updated)
-                        finish()
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MusicTagEditorActivity, "Error saving", Toast.LENGTH_SHORT).show()
-                }
-            }
+        contentResolver.update(file.uri, values, null, null)
+
+        withContext(Dispatchers.Main) {
+            val updated = file.copy(
+                title = binding.etTitle.text.toString(),
+                artist = binding.etArtist.text.toString(),
+                album = binding.etAlbum.text.toString(),
+                genre = binding.etGenre.text.toString()
+            )
+            PlaylistRepository.updateFile(updated)
+            Toast.makeText(this@MusicTagEditorActivity, "Saved Successfully!", Toast.LENGTH_SHORT).show()
+            finish()
         }
     }
 }

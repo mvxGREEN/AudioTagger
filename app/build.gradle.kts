@@ -79,5 +79,5 @@ dependencies {
     implementation(libs.library)
     implementation(libs.media3.ui)
 
-    implementation("io.github.kyant0:taglib:1.0.5")
+    implementation("com.github.AdrienPoupa:jaudiotagger:2.2.3")
 }
