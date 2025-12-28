@@ -11,21 +11,6 @@
         android:gravity="center_horizontal"
         android:layout_marginTop="56dp">
 
-        <ImageView
-            android:id="@+id/edit_album_art"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/default_album_art_144px" />
-
-        <Button
-            android:id="@+id/button_change_art"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Change Album Art"
-            android:textSize="16sp"
-            style="@style/Widget.MaterialComponents.Button.TextButton" />
-
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -75,6 +60,22 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="Save Tags" />
+
+        <ImageView
+            android:id="@+id/edit_album_art"
+            android:layout_marginTop="16dp"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/default_album_art_144px" />
+
+        <Button
+            android:id="@+id/button_change_art"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Change Album Art"
+            android:textSize="16sp"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
 
     </LinearLayout>
 </ScrollView>
