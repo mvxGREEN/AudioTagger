@@ -58,6 +58,10 @@ class MusicTagEditorActivity : AppCompatActivity() {
                 .load(file.albumId?.let { getAlbumArtUri(it) } ?: file.uri)
                 .placeholder(R.drawable.default_album_art_144px)
                 .into(binding.editAlbumArt)
+
+            binding.editAlbumArt.setOnClickListener {
+                pickImageLauncher.launch("image/*")
+            }
         }
     }
 
@@ -77,33 +81,40 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // 1. Open a FileDescriptor in read-write mode
                 contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
-                    // Note: JAudiotagger works best with physical File objects.
-                    // On Scoped Storage, we must work around this by writing
-                    // to a temporary file and then copying it back,
-                    // or using a library version that supports FileDescriptors.
-
-                    // For simplicity in this example, we'll use a temp file strategy:
                     val tempFile = java.io.File(cacheDir, "temp_audio.mp3")
 
-                    // Copy original to temp
                     contentResolver.openInputStream(file.uri)?.use { input ->
                         tempFile.outputStream().use { output -> input.copyTo(output) }
                     }
 
-                    // 2. Use JAudiotagger to edit the temp file
-                    val audioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
-                    val tag = audioFile.tagOrCreateAndSetDefault
+                    val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
+                    val tag = jaudioFile.tagOrCreateAndSetDefault
 
+                    // 1. Save Text Fields
                     tag.setField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
                     tag.setField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
                     tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
                     tag.setField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
 
-                    audioFile.commit()
+                    // 2. Save Artwork if a new one was picked
+                    selectedImageUri?.let { imageUri ->
+                        contentResolver.openInputStream(imageUri)?.use { inputStream ->
+                            val imageBytes = inputStream.readBytes()
 
-                    // 3. Write the temp file back to the original URI
+                            // Create Artwork object
+                            val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
+                            artwork.binaryData = imageBytes
+
+                            // Important: Clear existing art before adding new one
+                            tag.deleteArtworkField()
+                            tag.setField(artwork)
+                        }
+                    }
+
+                    jaudioFile.commit()
+
+                    // 3. Write temp file back
                     contentResolver.openOutputStream(file.uri, "wt")?.use { output ->
                         tempFile.inputStream().use { input -> input.copyTo(output) }
                     }
@@ -111,17 +122,28 @@ class MusicTagEditorActivity : AppCompatActivity() {
                     tempFile.delete()
                 }
 
-                // 4. Force MediaStore to re-scan the file so the UI updates
                 updateMediaStoreRecord(file)
 
             } catch (e: Exception) {
-                Log.e("MusicTagEditorActivity", "JAudiotagger Error: ${e.message}")
+                Log.e("MusicTagEditorActivity", "Error: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MusicTagEditorActivity, "Failed to write tags", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MusicTagEditorActivity, "Failed to save artwork", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
+    // Inside MusicTagEditorActivity class
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            // Load the preview in the UI immediately
+            Glide.with(this).load(it).into(binding.editAlbumArt)
+            // Store the selected URI to be used during saveMetadata()
+            selectedImageUri = it
+        }
+    }
+
+    private var selectedImageUri: Uri? = null
 
     private suspend fun updateMediaStoreRecord(file: AudioFile) {
         val values = ContentValues().apply {
@@ -129,6 +151,8 @@ class MusicTagEditorActivity : AppCompatActivity() {
             put(MediaStore.Audio.Media.ARTIST, binding.etArtist.text.toString())
             put(MediaStore.Audio.Media.ALBUM, binding.etAlbum.text.toString())
             put(MediaStore.Audio.Media.GENRE, binding.etGenre.text.toString())
+            // Forces system to recognize the file changed
+            put(MediaStore.Audio.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
         }
 
         contentResolver.update(file.uri, values, null, null)
