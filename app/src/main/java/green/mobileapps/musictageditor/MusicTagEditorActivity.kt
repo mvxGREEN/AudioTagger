@@ -104,12 +104,15 @@ class MusicTagEditorActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
-                    val tempFile = java.io.File(cacheDir, "temp_audio.mp3")
+                    // 1. Create a workspace in cache
+                    val tempFile = java.io.File(cacheDir, "edit_${System.currentTimeMillis()}.mp3")
 
+                    // 2. Copy original to temp FIRST
                     contentResolver.openInputStream(file.uri)?.use { input ->
                         tempFile.outputStream().use { output -> input.copyTo(output) }
-                    }
+                    } ?: throw Exception("Could not read original file")
 
+                    // 3. Edit the temp file
                     val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
                     val tag = jaudioFile.tagOrCreateAndSetDefault
 
@@ -119,37 +122,40 @@ class MusicTagEditorActivity : AppCompatActivity() {
                     tag.setField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
                     tag.setField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
 
-                    // 2. Save Artwork if a new one was picked
+                    // Handle Artwork with a size check to prevent OOM
                     selectedImageUri?.let { imageUri ->
-                        contentResolver.openInputStream(imageUri)?.use { inputStream ->
-                            val imageBytes = inputStream.readBytes()
+                        // Call the compression function here instead of inputStream.readBytes()
+                        val imageBytes = getCompressedBytes(imageUri)
 
-                            // Create Artwork object
+                        if (imageBytes != null) {
                             val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
                             artwork.binaryData = imageBytes
 
-                            // Important: Clear existing art before adding new one
+                            // Clear existing and set new compressed artwork
                             tag.deleteArtworkField()
                             tag.setField(artwork)
+                        } else {
+                            throw Exception("Failed to process selected image.")
                         }
                     }
 
+                    // commit to temp file
                     jaudioFile.commit()
 
                     // 3. Write temp file back
-                    contentResolver.openOutputStream(file.uri, "wt")?.use { output ->
-                        tempFile.inputStream().use { input -> input.copyTo(output) }
-                    }
+                    contentResolver.openOutputStream(file.uri, "rwt")?.use { output ->
+                        tempFile.inputStream().use { input ->
+                            input.copyTo(output)
+                        }
+                    } ?: throw Exception("Could not open output stream")
 
                     tempFile.delete()
+                    updateMediaStoreRecord(file)
                 }
-
-                updateMediaStoreRecord(file)
-
             } catch (e: Exception) {
                 Log.e("MusicTagEditorActivity", "Error: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MusicTagEditorActivity, "Failed to save artwork", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MusicTagEditorActivity, "Failed to save tags", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -179,30 +185,45 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
     private var selectedImageUri: Uri? = null
 
+    private fun getCompressedBytes(uri: Uri): ByteArray? {
+        val inputStream = contentResolver.openInputStream(uri) ?: return null
+        val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+
+        // Scale down if the image is excessively large
+        val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(originalBitmap, 1000, 1000, true)
+
+        val outputStream = java.io.ByteArrayOutputStream()
+        scaledBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, outputStream)
+        return outputStream.toByteArray()
+    }
+
     private suspend fun updateMediaStoreRecord(file: AudioFile) {
-        val newTimestamp = System.currentTimeMillis() / 1000 // Current time in seconds
+        // Generate a fresh timestamp in seconds
+        val newTimestamp = System.currentTimeMillis() / 1000
 
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.TITLE, binding.etTitle.text.toString())
             put(MediaStore.Audio.Media.ARTIST, binding.etArtist.text.toString())
             put(MediaStore.Audio.Media.ALBUM, binding.etAlbum.text.toString())
             put(MediaStore.Audio.Media.GENRE, binding.etGenre.text.toString())
-            put(MediaStore.Audio.Media.DATE_MODIFIED, newTimestamp) // Force system refresh
+            // Update the system record's modification date
+            put(MediaStore.Audio.Media.DATE_MODIFIED, newTimestamp)
         }
 
         contentResolver.update(file.uri, values, null, null)
 
         withContext(Dispatchers.Main) {
-            // Create a copy with the NEW metadata and the NEW timestamp
+            // IMPORTANT: Create a copy with the NEW metadata AND the NEW timestamp
             val updated = file.copy(
                 title = binding.etTitle.text.toString(),
                 artist = binding.etArtist.text.toString(),
                 album = binding.etAlbum.text.toString(),
                 genre = binding.etGenre.text.toString(),
-                dateModified = newTimestamp // This is the key for MainActivity to refresh
+                dateModified = newTimestamp // This triggers the UI refresh
             )
 
-            PlaylistRepository.updateFile(updated) // This notifies the ViewModel and Adapter
+            // Push the update to the repository
+            PlaylistRepository.updateFile(updated)
             Toast.makeText(this@MusicTagEditorActivity, "Saved Successfully!", Toast.LENGTH_SHORT).show()
             finish()
         }

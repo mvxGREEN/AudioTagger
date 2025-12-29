@@ -84,7 +84,7 @@ import kotlinx.coroutines.isActive
 // REMOVED: import com.bumptech.glide.load.resource.bitmap.VideoDecoder // Removed unresolvable import
 
 // --- SORTING DEFINITIONS ---
-enum class SortBy { LAST_MODIFIED, TITLE, ARTIST, ALBUM, DURATION }
+enum class SortBy { DATE_ADDED, TITLE, ARTIST, ALBUM, DURATION }
 data class SortState(val by: SortBy, val ascending: Boolean)
 // ---------------------------
 
@@ -336,8 +336,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     // NEW: LiveData to hold the current search query
     private var currentQuery: String = ""
 
-    // NEW: LiveData to hold the current sorting state (Default: LAST_MODIFIED Descending)
-    private val _sortState = MutableLiveData(SortState(SortBy.LAST_MODIFIED, false))
+    private val _sortState = MutableLiveData(SortState(SortBy.DATE_ADDED, false))
     val sortState: LiveData<SortState> = _sortState
 
     // Coroutine setup
@@ -528,7 +527,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
      * Toggles the ascending/descending state and reapplies sort/filter.
      */
     fun toggleSortDirection() {
-        val current = _sortState.value ?: SortState(SortBy.LAST_MODIFIED, false)
+        val current = _sortState.value ?: SortState(SortBy.DATE_ADDED, false)
         val newDirection = !current.ascending
         _sortState.value = current.copy(ascending = newDirection)
         applySortAndFilter()
@@ -553,8 +552,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
             // Nullable strings need a null-safe comparison, using compareBy for default ordering
             SortBy.ALBUM -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.album ?: "" }
             SortBy.DURATION -> compareBy { it.duration }
-            // Default to LAST_MODIFIED, with nulls treated as 0L (oldest)
-            SortBy.LAST_MODIFIED -> compareBy { it.dateModified ?: 0L }
+            SortBy.DATE_ADDED -> compareBy { it.dateAdded ?: 0L }
         }
 
         val sortedList = list.sortedWith(comparator)
@@ -751,6 +749,15 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
     override fun getItemCount(): Int = musicList.size
 
     fun updateList(newList: List<AudioFile>) {
+        newList.forEach { newFile ->
+            val oldFile = musicList.find { it.id == newFile.id }
+            if (oldFile != null && oldFile.dateModified != newFile.dateModified) {
+                // This is the file that was just edited!
+                // Remove it so it's forced to reload from the MediaMetadataRetriever
+                imageCache.remove(newFile.id)
+            }
+        }
+
         val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
             override fun getOldListSize(): Int = musicList.size
             override fun getNewListSize(): Int = newList.size
@@ -763,7 +770,7 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
                 val oldItem = musicList[oldPos]
                 val newItem = newList[newPos]
-                // Including dateModified ensures the artwork refreshes even if text stays the same
+                // If dateModified changes, this returns false, and the row is re-drawn
                 return oldItem.title == newItem.title &&
                         oldItem.artist == newItem.artist &&
                         oldItem.dateModified == newItem.dateModified
@@ -939,7 +946,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
             val popup = PopupMenu(this, view)
             popup.menu.apply {
                 // Add sorting criteria (without direction toggles)
-                add(0, SortBy.LAST_MODIFIED.ordinal, 0, "Last Modified (Default)")
+                add(0, SortBy.DATE_ADDED.ordinal, 0, "Date Added (Default)")
                 add(0, SortBy.TITLE.ordinal, 1, "Title")
                 add(0, SortBy.ARTIST.ordinal, 2, "Artist")
                 add(0, SortBy.ALBUM.ordinal, 3, "Album")
@@ -947,7 +954,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
             }
 
             popup.setOnMenuItemClickListener { item: MenuItem ->
-                val currentSortState = viewModel.sortState.value ?: SortState(SortBy.LAST_MODIFIED, false)
+                val currentSortState = viewModel.sortState.value ?: SortState(SortBy.DATE_ADDED, false)
                 val sortCriterion = SortBy.entries.find { it.ordinal == item.itemId }
 
                 if (sortCriterion != null) {

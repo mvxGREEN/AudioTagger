@@ -35,7 +35,8 @@
         <activity
             android:name=".MusicTagEditorActivity"
             android:exported="false"
-            android:label="Tags"
+            android:label="Tag Editor"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/AppTheme.NoActionBar" />
 
         <provider
