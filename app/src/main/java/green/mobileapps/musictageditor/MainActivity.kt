@@ -761,9 +761,9 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             }
 
             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
-                // Check if the content (title, artist, OR modification date) changed
                 val oldItem = musicList[oldPos]
                 val newItem = newList[newPos]
+                // Including dateModified ensures the artwork refreshes even if text stays the same
                 return oldItem.title == newItem.title &&
                         oldItem.artist == newItem.artist &&
                         oldItem.dateModified == newItem.dateModified

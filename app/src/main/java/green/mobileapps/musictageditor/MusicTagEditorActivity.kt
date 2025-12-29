@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import green.mobileapps.musictageditor.databinding.TagEditorActivityBinding
 import kotlinx.coroutines.*
@@ -52,12 +53,33 @@ class MusicTagEditorActivity : AppCompatActivity() {
             binding.etAlbum.setText(file.album)
             binding.etGenre.setText(file.genre)
 
-            Log.i("MusicTagEditorActivity", "albumId: ${file.albumId}")
+            Log.d("MusicTagEditorActivity", "albumId: ${file.albumId}")
 
-            Glide.with(this)
-                .load(file.albumId?.let { getAlbumArtUri(it) } ?: file.uri)
-                .placeholder(R.drawable.default_album_art_144px)
-                .into(binding.editAlbumArt)
+            // Replicated logic from MainActivity/MusicAdapter
+            val cacheKey = "${file.id}_${file.dateModified}"
+            val isProblematic = file.album?.lowercase() == "music" ||
+                    file.album?.lowercase() == "documents" ||
+                    file.albumId == 553547078986512838L ||
+                    file.artist.lowercase() == "<unknown>"
+
+            if (isProblematic) {
+                // Path A: Manual extraction for problematic files
+                this.lifecycleScope.launch {
+                    val imageBytes = getEmbeddedPicture(file.uri)
+                    Glide.with(this@MusicTagEditorActivity)
+                        .load(imageBytes)
+                        .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
+                        .placeholder(R.drawable.default_album_art_144px)
+                        .into(binding.editAlbumArt)
+                }
+            } else {
+                // Path B: Standard MediaStore loading for clean metadata
+                Glide.with(this@MusicTagEditorActivity)
+                    .load(file.albumId?.let { getAlbumArtUri(it) })
+                    .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
+                    .placeholder(R.drawable.default_album_art_144px)
+                    .into(binding.editAlbumArt)
+            }
 
             binding.editAlbumArt.setOnClickListener {
                 pickImageLauncher.launch("image/*")
@@ -133,6 +155,18 @@ class MusicTagEditorActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun getEmbeddedPicture(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+        val retriever = android.media.MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(this@MusicTagEditorActivity, uri)
+            retriever.embeddedPicture
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
+        }
+    }
+
     // Inside MusicTagEditorActivity class
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
@@ -146,25 +180,29 @@ class MusicTagEditorActivity : AppCompatActivity() {
     private var selectedImageUri: Uri? = null
 
     private suspend fun updateMediaStoreRecord(file: AudioFile) {
+        val newTimestamp = System.currentTimeMillis() / 1000 // Current time in seconds
+
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.TITLE, binding.etTitle.text.toString())
             put(MediaStore.Audio.Media.ARTIST, binding.etArtist.text.toString())
             put(MediaStore.Audio.Media.ALBUM, binding.etAlbum.text.toString())
             put(MediaStore.Audio.Media.GENRE, binding.etGenre.text.toString())
-            // Forces system to recognize the file changed
-            put(MediaStore.Audio.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
+            put(MediaStore.Audio.Media.DATE_MODIFIED, newTimestamp) // Force system refresh
         }
 
         contentResolver.update(file.uri, values, null, null)
 
         withContext(Dispatchers.Main) {
+            // Create a copy with the NEW metadata and the NEW timestamp
             val updated = file.copy(
                 title = binding.etTitle.text.toString(),
                 artist = binding.etArtist.text.toString(),
                 album = binding.etAlbum.text.toString(),
-                genre = binding.etGenre.text.toString()
+                genre = binding.etGenre.text.toString(),
+                dateModified = newTimestamp // This is the key for MainActivity to refresh
             )
-            PlaylistRepository.updateFile(updated)
+
+            PlaylistRepository.updateFile(updated) // This notifies the ViewModel and Adapter
             Toast.makeText(this@MusicTagEditorActivity, "Saved Successfully!", Toast.LENGTH_SHORT).show()
             finish()
         }

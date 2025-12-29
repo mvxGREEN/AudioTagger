@@ -27,4 +27,6 @@
     // description
     <string name="album_art_description">album art</string>
     <string name="cd_album_art">Album Art</string>
+    <string name="album_artwork">album artwork</string>
+    <string name="save_tags">Save Tags</string>
 </resources>
