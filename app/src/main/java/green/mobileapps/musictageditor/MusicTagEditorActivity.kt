@@ -32,18 +32,32 @@ class MusicTagEditorActivity : AppCompatActivity() {
         binding = TagEditorActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check if opened from another app
-        if (intent.data != null && (intent.action == Intent.ACTION_VIEW
-                    || intent.action == Intent.ACTION_SEND
-                    || intent.action == Intent.ACTION_EDIT)) {
+        // 1. Handle "Share" Intent (ACTION_SEND)
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("audio/") == true) {
+            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
+
+            if (uri != null) {
+                lifecycleScope.launch {
+                    audioFile = createAudioFileFromUri(uri)
+                    setupUI()
+                }
+            }
+        }
+        // 2. Handle "Open With" Intent (ACTION_VIEW / EDIT)
+        else if (intent.data != null && (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_EDIT)) {
             val uri = intent.data!!
-            // Launch a coroutine to load metadata, as IO operations shouldn't be on Main Thread
             lifecycleScope.launch {
                 audioFile = createAudioFileFromUri(uri)
                 setupUI()
             }
-        } else {
-            // Standard internal launch
+        }
+        // 3. Handle Standard Internal Launch
+        else {
             audioFile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra("audio_file", AudioFile::class.java)
             } else {
@@ -72,12 +86,13 @@ class MusicTagEditorActivity : AppCompatActivity() {
             Log.d("MusicTagEditorActivity", "albumId: ${file.albumId}")
 
             val cacheKey = "${file.id}_${file.dateModified}"
-            val isProblematic = file.album?.lowercase() == "music" ||
+            val useEmbeddedArt = file.albumId == null ||
+                    file.album?.lowercase() == "music" ||
                     file.album?.lowercase() == "documents" ||
                     file.albumId == 553547078986512838L ||
                     file.artist.lowercase() == "<unknown>"
 
-            if (isProblematic) {
+            if (useEmbeddedArt) {
                 this.lifecycleScope.launch {
                     val imageBytes = getEmbeddedPicture(file.uri)
                     Glide.with(this@MusicTagEditorActivity)
@@ -148,6 +163,16 @@ class MusicTagEditorActivity : AppCompatActivity() {
                             artwork.binaryData = imageBytes
                             tag.deleteArtworkField()
                             tag.setField(artwork)
+                        }
+                    }
+
+                    if (jaudioFile is org.jaudiotagger.audio.mp3.MP3File) {
+                        if (jaudioFile.hasID3v2Tag()) {
+                            val v2tag = jaudioFile.iD3v2Tag
+                            if (v2tag is org.jaudiotagger.tag.id3.ID3v24Tag) {
+                                // Convert the v2.4 tag to v2.3 (which uses TYER instead of TDRC)
+                                jaudioFile.iD3v2Tag = org.jaudiotagger.tag.id3.ID3v23Tag(v2tag)
+                            }
                         }
                     }
 

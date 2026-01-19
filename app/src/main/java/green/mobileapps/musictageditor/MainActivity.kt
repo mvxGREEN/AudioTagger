@@ -517,9 +517,13 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             }
 
             val cacheKey = "${file.id}_${file.dateModified}"
-            val isProblematic = file.album?.lowercase() == "music" || file.album?.lowercase() == "documents" || file.albumId == 553547078986512838L || file.artist.lowercase() == "<unknown>"
+            val useEmbeddedArt = file.albumId == null ||
+                    file.album?.lowercase() == "music" ||
+                    file.album?.lowercase() == "documents" ||
+                    file.albumId == 553547078986512838L ||
+                    file.artist.lowercase() == "<unknown>"
 
-            if (isProblematic) {
+            if (useEmbeddedArt) {
                 val cachedBytes = imageCache[file.id]
                 if (cachedBytes != null) {
                     Glide.with(itemView.context).load(cachedBytes).signature(com.bumptech.glide.signature.ObjectKey(cacheKey)).transform(CircleCrop()).dontAnimate().into(binding.imageAlbumArt)
