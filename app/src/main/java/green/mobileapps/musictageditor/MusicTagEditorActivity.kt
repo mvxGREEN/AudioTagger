@@ -32,8 +32,10 @@ class MusicTagEditorActivity : AppCompatActivity() {
         binding = TagEditorActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check if opened from another app via "Open With"
-        if (intent.data != null && (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_EDIT)) {
+        // Check if opened from another app
+        if (intent.data != null && (intent.action == Intent.ACTION_VIEW
+                    || intent.action == Intent.ACTION_SEND
+                    || intent.action == Intent.ACTION_EDIT)) {
             val uri = intent.data!!
             // Launch a coroutine to load metadata, as IO operations shouldn't be on Main Thread
             lifecycleScope.launch {
