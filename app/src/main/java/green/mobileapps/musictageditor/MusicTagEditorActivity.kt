@@ -126,71 +126,118 @@ class MusicTagEditorActivity : AppCompatActivity() {
         }
     }
 
+    private fun detectTrueExtension(uri: Uri): String {
+        // 1. Try to read the file header (Magic Numbers)
+        try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val header = ByteArray(12)
+                if (input.read(header) >= 4) {
+                    // MP3 (ID3v2) -> "ID3"
+                    if (header[0] == 0x49.toByte() && header[1] == 0x44.toByte() && header[2] == 0x33.toByte()) return "mp3"
+
+                    // MP3 (Frame Sync) -> FF FB or FF F3
+                    if (header[0] == 0xFF.toByte() && (header[1].toInt() and 0xE0) == 0xE0) return "mp3"
+
+                    // M4A/MP4 -> "ftyp" usually at index 4
+                    if (header[4] == 0x66.toByte() && header[5] == 0x74.toByte() &&
+                        header[6] == 0x79.toByte() && header[7] == 0x70.toByte()) return "m4a"
+
+                    // OGG -> "OggS"
+                    if (header[0] == 0x4F.toByte() && header[1] == 0x67.toByte() &&
+                        header[2] == 0x67.toByte() && header[3] == 0x53.toByte()) return "ogg"
+
+                    // FLAC -> "fLaC"
+                    if (header[0] == 0x66.toByte() && header[1] == 0x4C.toByte() &&
+                        header[2] == 0x61.toByte() && header[3] == 0x43.toByte()) return "flac"
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("TagEditor", "Header sniff failed", e)
+        }
+
+        // 2. Fallback: Check the original filename (Crucial for Raw AAC)
+        val fileName = getFileName(uri)
+        if (!fileName.isNullOrEmpty() && fileName.contains(".")) {
+            val ext = fileName.substringAfterLast(".").lowercase()
+            return when (ext) {
+                "aac" -> "m4a"   // Treat .aac as .m4a so jaudiotagger tries to read it
+                "opus" -> "ogg"  // Treat .opus as .ogg
+                else -> ext
+            }
+        }
+
+        // 3. Last Resort: Default to mp3 ONLY if we are truly clueless
+        return "mp3"
+    }
+
     private fun saveMetadata() {
         val file = audioFile ?: return
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 contentResolver.openFileDescriptor(file.uri, "rw")?.use { pfd ->
-                    val tempFile = java.io.File(cacheDir, "edit_${System.currentTimeMillis()}.mp3")
+
+                    // FIX: Use the new detector
+                    val extension = detectTrueExtension(file.uri)
+                    val tempFile = java.io.File(cacheDir, "edit_${System.currentTimeMillis()}.$extension")
+
+                    // Copy original file to temp
                     contentResolver.openInputStream(file.uri)?.use { input ->
                         tempFile.outputStream().use { output -> input.copyTo(output) }
                     } ?: throw Exception("Could not read original file")
 
-                    val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
-                    val tag = jaudioFile.tagOrCreateAndSetDefault
+                    // Try to edit tags
+                    try {
+                        val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
+                        val tag = jaudioFile.tagOrCreateAndSetDefault
 
-                    fun setTagField(key: org.jaudiotagger.tag.FieldKey, value: String) {
-                        if (value.isNotBlank()) {
-                            tag.setField(key, value)
-                        } else {
-                            tag.deleteField(key)
+                        // --- YOUR TAG SETTING LOGIC GOES HERE ---
+                        fun setTagField(key: org.jaudiotagger.tag.FieldKey, value: String) {
+                            if (value.isNotBlank()) tag.setField(key, value) else tag.deleteField(key)
                         }
-                    }
+                        setTagField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, binding.etAlbumArtist.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.TRACK, binding.etTrackNumber.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.COMPOSER, binding.etComposer.text.toString())
+                        setTagField(org.jaudiotagger.tag.FieldKey.YEAR, binding.etYear.text.toString())
 
-                    setTagField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
-                    setTagField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
-                    setTagField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
-                    setTagField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, binding.etAlbumArtist.text.toString())
-                    setTagField(org.jaudiotagger.tag.FieldKey.TRACK, binding.etTrackNumber.text.toString())
-                    // REMOVED: Genre tag field
-                    setTagField(org.jaudiotagger.tag.FieldKey.COMPOSER, binding.etComposer.text.toString())
-                    setTagField(org.jaudiotagger.tag.FieldKey.YEAR, binding.etYear.text.toString())
-
-                    selectedImageUri?.let { imageUri ->
-                        getCompressedBytes(imageUri)?.let { imageBytes ->
-                            val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
-                            artwork.binaryData = imageBytes
-                            tag.deleteArtworkField()
-                            tag.setField(artwork)
-                        }
-                    }
-
-                    if (jaudioFile is org.jaudiotagger.audio.mp3.MP3File) {
-                        if (jaudioFile.hasID3v2Tag()) {
-                            val v2tag = jaudioFile.iD3v2Tag
-                            if (v2tag is org.jaudiotagger.tag.id3.ID3v24Tag) {
-                                // Convert the v2.4 tag to v2.3 (which uses TYER instead of TDRC)
-                                jaudioFile.iD3v2Tag = org.jaudiotagger.tag.id3.ID3v23Tag(v2tag)
+                        selectedImageUri?.let { imageUri ->
+                            getCompressedBytes(imageUri)?.let { imageBytes ->
+                                val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
+                                artwork.binaryData = imageBytes
+                                tag.deleteArtworkField()
+                                tag.setField(artwork)
                             }
                         }
+                        // ----------------------------------------
+
+                        jaudioFile.commit()
+
+                    } catch (e: Exception) {
+                        // Check for specific file format errors
+                        val msg = e.message ?: ""
+                        if (msg.contains("No Reader associated") || msg.contains("not appear to be an Mp4")) {
+                            throw Exception("Cannot edit file type; Convert to MP3 or M4A.")
+                        } else if (msg.contains("No audio header found")) {
+                            throw Exception("File corrupted or extension mismatch.")
+                        }
+                        throw e
                     }
 
-                    jaudioFile.commit()
-
+                    // Write temp file back to original Uri
                     contentResolver.openOutputStream(file.uri, "rwt")?.use { output ->
-                        tempFile.inputStream().use { input ->
-                            input.copyTo(output)
-                        }
+                        tempFile.inputStream().use { input -> input.copyTo(output) }
                     } ?: throw Exception("Could not open output stream")
 
                     tempFile.delete()
                     updateMediaStoreRecord(file)
                 }
             } catch (e: Exception) {
-                Log.e("MusicTagEditorActivity", "Error: ${e.message}")
+                Log.e("MusicTagEditorActivity", "Error saving", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MusicTagEditorActivity, "Failed to save tags", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MusicTagEditorActivity, "Save Failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -276,6 +323,9 @@ class MusicTagEditorActivity : AppCompatActivity() {
                 composer = binding.etComposer.text.toString(),
                 year = binding.etYear.text.toString().toIntOrNull(),
                 track = binding.etTrackNumber.text.toString().toIntOrNull(),
+
+                albumId = null,
+
                 // Removed Genre from copy
                 dateModified = newTimestamp
             )
