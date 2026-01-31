@@ -1,6 +1,7 @@
 package green.mobileapps.musictageditor
 
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -13,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import green.mobileapps.musictageditor.databinding.TagEditorActivityBinding
 import kotlinx.coroutines.*
 
@@ -20,6 +22,7 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
     private lateinit var binding: TagEditorActivityBinding
     private var audioFile: AudioFile? = null
+    private val artworkCache = android.util.LruCache<Long, ByteArray>(10 * 1024 * 1024)
 
     private val intentSenderLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -86,32 +89,50 @@ class MusicTagEditorActivity : AppCompatActivity() {
             Log.d("MusicTagEditorActivity", "albumId: ${file.albumId}")
 
             val cacheKey = "${file.id}_${file.dateModified}"
-            val useEmbeddedArt = file.albumId == null ||
-                    file.album?.lowercase() == "music" ||
-                    file.album?.lowercase() == "documents" ||
-                    file.albumId == 553547078986512838L ||
-                    file.artist.lowercase() == "<unknown>"
+            val cachedBytes = artworkCache.get(file.id)
 
-            if (useEmbeddedArt) {
-                this.lifecycleScope.launch {
-                    val imageBytes = getEmbeddedPicture(file.uri)
-                    Glide.with(this@MusicTagEditorActivity)
-                        .load(imageBytes)
-                        .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
-                        .placeholder(R.drawable.default_album_art_192px)
-                        .into(binding.editAlbumArt)
-                }
+            if (cachedBytes != null) {
+                // HIT: Load directly from memory
+                loadArtIntoView(cachedBytes, cacheKey)
             } else {
-                Glide.with(this@MusicTagEditorActivity)
-                    .load(file.albumId?.let { getAlbumArtUri(it) })
-                    .signature(com.bumptech.glide.signature.ObjectKey(cacheKey))
-                    .placeholder(R.drawable.default_album_art_192px)
-                    .into(binding.editAlbumArt)
+                // MISS: Show default and load in background
+                binding.editAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+
+                val bytes = getEmbeddedPicture(binding.editAlbumArt.context, file.uri)
+
+                if (bytes != null) {
+                    artworkCache.put(file.id, bytes)
+                }
+
+                // Switch to Main thread to update UI
+                loadArtIntoView(bytes, cacheKey)
             }
 
             binding.editAlbumArt.setOnClickListener {
                 pickImageLauncher.launch("image/*")
             }
+        }
+    }
+
+    private fun loadArtIntoView(bytes: ByteArray?, signatureKey: String) {
+        Glide.with(this)
+            .load(bytes ?: R.drawable.default_album_art_144px) // Load bytes or fallback
+            .signature(com.bumptech.glide.signature.ObjectKey(signatureKey))
+            .transform(CircleCrop())
+            .placeholder(R.drawable.default_album_art_144px)
+            .dontAnimate()
+            .into(binding.editAlbumArt)
+    }
+
+    private fun getEmbeddedPicture(context: Context, uri: Uri): ByteArray? {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, uri)
+            retriever.embeddedPicture
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
         }
     }
 

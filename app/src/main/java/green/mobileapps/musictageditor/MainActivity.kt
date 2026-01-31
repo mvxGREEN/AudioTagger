@@ -521,23 +521,18 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 binding.textArtist.text = fullArtistText
             }
 
-            val cacheKey = "${file.id}_${file.dateModified}"
-            val cachedBytes = artworkCache.get(file.id)
+            val cacheKey = "${file.id}_${file.dateModified}" // Key changes when file is edited
 
-            // 2. Clear current image to avoid showing wrong art while loading
-            // (Optional: You can leave the placeholder if you prefer)
-            Glide.with(itemView.context).clear(binding.imageAlbumArt)
+            val cachedBytes = artworkCache.get(file.id) // Will be null now for edited files
 
             if (cachedBytes != null) {
-                // HIT: Load directly from memory
                 loadArtIntoView(cachedBytes, cacheKey)
             } else {
-                // MISS: Show default and load in background
+                // This block will now correctly execute for edited files
                 binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
-
                 job = (itemView.context as? MainActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                    // Extract art from file (Heavy Operation)
                     val bytes = getEmbeddedPicture(itemView.context, file.uri)
+                    if (bytes != null) artworkCache.put(file.id, bytes)
 
                     if (bytes != null) {
                         artworkCache.put(file.id, bytes)
@@ -580,11 +575,20 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
         holder.bind(musicList[position], position)
     }
     override fun getItemCount(): Int = musicList.size
-    fun updateList(newList: List<AudioFile>) {
-        // REMOVED: The manual cache invalidation logic is no longer needed.
-        // Glide automatically handles cache invalidation based on the
-        // signature(ObjectKey(cacheKey)) we added in the bind() method.
+    // In MainActivity.kt -> MusicAdapter class
 
+    fun updateList(newList: List<AudioFile>) {
+        // 1. Detect changed items and clear their cached artwork
+        newList.forEach { newItem ->
+            val oldItem = musicList.find { it.id == newItem.id }
+
+            // If the file exists but the timestamp is different, the content changed
+            if (oldItem != null && oldItem.dateModified != newItem.dateModified) {
+                artworkCache.remove(newItem.id)
+            }
+        }
+
+        // 2. Proceed with your existing DiffUtil logic
         val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
             override fun getOldListSize(): Int = musicList.size
             override fun getNewListSize(): Int = newList.size
@@ -596,6 +600,7 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
                 val oldItem = musicList[oldPos]
                 val newItem = newList[newPos]
+                // Ensure dateModified is part of this check so onBindViewHolder is triggered
                 return oldItem.title == newItem.title &&
                         oldItem.artist == newItem.artist &&
                         oldItem.dateModified == newItem.dateModified

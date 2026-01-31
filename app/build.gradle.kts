@@ -15,8 +15,8 @@ android {
         applicationId = "green.mobileapps.musictageditor"
         minSdk = 24
         targetSdk = 36
-        versionCode = 6
-        versionName = "2.1.5"
+        versionCode = 8
+        versionName = "2.1.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
