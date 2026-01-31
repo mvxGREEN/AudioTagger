@@ -462,6 +462,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 class MusicAdapter(private val activity: MainActivity, private var musicList: List<AudioFile>, private val editListener: MusicEditListener) :
     RecyclerView.Adapter<MusicAdapter.MusicViewHolder>() {
     private val imageCache = mutableMapOf<Long, ByteArray?>()
+    private val artworkCache = android.util.LruCache<Long, ByteArray>(10 * 1024 * 1024)
     private var editingPosition: Int = RecyclerView.NO_POSITION
 
     fun setEditingPosition(newPosition: Int) {
@@ -470,12 +471,16 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
         if (oldPosition != RecyclerView.NO_POSITION) notifyItemChanged(oldPosition)
         if (newPosition != RecyclerView.NO_POSITION) notifyItemChanged(newPosition)
     }
-    suspend fun getEmbeddedPicture(context: Context, uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+    private fun getEmbeddedPicture(context: Context, uri: Uri): ByteArray? {
         val retriever = android.media.MediaMetadataRetriever()
-        try {
+        return try {
             retriever.setDataSource(context, uri)
             retriever.embeddedPicture
-        } catch (e: Exception) { null } finally { retriever.release() }
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
+        }
     }
     fun getEditingPosition(): Int = editingPosition
 
@@ -517,29 +522,35 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             }
 
             val cacheKey = "${file.id}_${file.dateModified}"
-            val useEmbeddedArt = file.albumId == null ||
-                    file.album?.lowercase() == "music" ||
-                    file.album?.lowercase() == "documents" ||
-                    file.albumId == 553547078986512838L ||
-                    file.artist.lowercase() == "<unknown>"
+            val cachedBytes = artworkCache.get(file.id)
 
-            if (useEmbeddedArt) {
-                val cachedBytes = imageCache[file.id]
-                if (cachedBytes != null) {
-                    Glide.with(itemView.context).load(cachedBytes).signature(com.bumptech.glide.signature.ObjectKey(cacheKey)).transform(CircleCrop()).dontAnimate().into(binding.imageAlbumArt)
-                } else {
-                    Glide.with(itemView.context).clear(binding.imageAlbumArt)
-                    binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
-                    job = activity.lifecycleScope.launch {
-                        val imageBytes = getEmbeddedPicture(itemView.context, file.uri)
-                        if (imageBytes != null) imageCache[file.id] = imageBytes
+            // 2. Clear current image to avoid showing wrong art while loading
+            // (Optional: You can leave the placeholder if you prefer)
+            Glide.with(itemView.context).clear(binding.imageAlbumArt)
+
+            if (cachedBytes != null) {
+                // HIT: Load directly from memory
+                loadArtIntoView(cachedBytes, cacheKey)
+            } else {
+                // MISS: Show default and load in background
+                binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+
+                job = (itemView.context as? MainActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                    // Extract art from file (Heavy Operation)
+                    val bytes = getEmbeddedPicture(itemView.context, file.uri)
+
+                    if (bytes != null) {
+                        artworkCache.put(file.id, bytes)
+                    }
+
+                    // Switch to Main thread to update UI
+                    withContext(Dispatchers.Main) {
+                        // Check if this ViewHolder is still bound to the same file
                         if (isActive) {
-                            Glide.with(itemView.context).load(imageBytes).signature(com.bumptech.glide.signature.ObjectKey(cacheKey)).transform(CircleCrop()).placeholder(R.drawable.default_album_art_144px).dontAnimate().into(binding.imageAlbumArt)
+                            loadArtIntoView(bytes, cacheKey)
                         }
                     }
                 }
-            } else {
-                Glide.with(itemView.context).load(getAlbumArtUri(file.albumId!!)).signature(com.bumptech.glide.signature.ObjectKey(cacheKey)).transform(CircleCrop()).placeholder(R.drawable.default_album_art_144px).dontAnimate().into(binding.imageAlbumArt)
             }
             binding.root.setOnClickListener {
                 if (!isEditing) activity.openTagEditor(file)
@@ -549,6 +560,16 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 val newArtist = binding.editTextArtist.text.toString().trim()
                 editListener.saveEditAndExit(file, newTitle, newArtist)
             }
+        }
+
+        private fun loadArtIntoView(bytes: ByteArray?, signatureKey: String) {
+            Glide.with(itemView.context)
+                .load(bytes ?: R.drawable.default_album_art_144px) // Load bytes or fallback
+                .signature(com.bumptech.glide.signature.ObjectKey(signatureKey))
+                .transform(CircleCrop())
+                .placeholder(R.drawable.default_album_art_144px)
+                .dontAnimate()
+                .into(binding.imageAlbumArt)
         }
     }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MusicViewHolder {
@@ -560,22 +581,27 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
     }
     override fun getItemCount(): Int = musicList.size
     fun updateList(newList: List<AudioFile>) {
-        newList.forEach { newFile ->
-            val oldFile = musicList.find { it.id == newFile.id }
-            if (oldFile != null && oldFile.dateModified != newFile.dateModified) {
-                imageCache.remove(newFile.id)
-            }
-        }
+        // REMOVED: The manual cache invalidation logic is no longer needed.
+        // Glide automatically handles cache invalidation based on the
+        // signature(ObjectKey(cacheKey)) we added in the bind() method.
+
         val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
             override fun getOldListSize(): Int = musicList.size
             override fun getNewListSize(): Int = newList.size
-            override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean = musicList[oldPos].id == newList[newPos].id
+
+            override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean {
+                return musicList[oldPos].id == newList[newPos].id
+            }
+
             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
                 val oldItem = musicList[oldPos]
                 val newItem = newList[newPos]
-                return oldItem.title == newItem.title && oldItem.artist == newItem.artist && oldItem.dateModified == newItem.dateModified
+                return oldItem.title == newItem.title &&
+                        oldItem.artist == newItem.artist &&
+                        oldItem.dateModified == newItem.dateModified
             }
         }
+
         val diffResult = androidx.recyclerview.widget.DiffUtil.calculateDiff(diffCallback)
         musicList = newList
         diffResult.dispatchUpdatesTo(this)
