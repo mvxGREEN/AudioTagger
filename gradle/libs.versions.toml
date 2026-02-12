@@ -23,6 +23,7 @@ media3Exoplayer = "1.8.0"
 media3Ui = "1.8.0"
 recyclerview = "1.4.0"
 media3version = "1.8.0"
+reviewKtx = "2.0.2"
 swiperefreshlayout = "1.2.0-rc01"
 swiperefreshlayoutVersion = "1.1.0"
 
@@ -60,6 +61,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 material-v1110 = { module = "com.google.android.material:material", version.ref = "materialVersion" }
 media = { module = "androidx.media:media", version.ref = "media" }
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Ui" }
+review-ktx = { module = "com.google.android.play:review-ktx", version.ref = "reviewKtx" }
 swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayoutVersion" }
 
 [plugins]

@@ -15,8 +15,8 @@ android {
         applicationId = "green.mobileapps.musictageditor"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "2.1.7"
+        versionCode = 9
+        versionName = "2.1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -86,4 +86,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
+
+    implementation(libs.review.ktx)
 }
