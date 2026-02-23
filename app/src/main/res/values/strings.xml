@@ -1,6 +1,6 @@
 <resources>
     // app
-    <string name="app_name">Tagger</string>
+    <string name="app_name">EverTag</string>
 
     // menu items
     <string name="title_menu_rate">Rate</string>
