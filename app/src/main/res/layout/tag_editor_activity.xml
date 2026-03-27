@@ -20,14 +20,35 @@
             android:gravity="center_horizontal"
             android:layout_marginTop="56dp">
 
-            <ImageView
-                android:id="@+id/edit_album_art"
-                android:layout_width="200dp"
-                android:layout_height="200dp"
-                android:contentDescription="@string/album_artwork"
-                android:scaleType="centerCrop"
-                android:src="@drawable/default_album_art_192px" />
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <ImageView
+                    android:id="@+id/edit_album_art"
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    android:contentDescription="@string/album_artwork"
+                    android:scaleType="centerCrop"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:src="@drawable/default_album_art_192px"
+                    android:alpha="0.95" />
 
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/edit_album_art_fab"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintEnd_toEndOf="@id/edit_album_art"
+                    app:layout_constraintBottom_toBottomOf="@id/edit_album_art"
+                    android:src="@drawable/photo_library_24px"
+                    app:tint="@color/gmaGreenWhite"
+                    android:backgroundTint="@color/gmaGreenDarkMono"
+                    android:contentDescription="@string/cd_photo_library_button"
+                    android:layout_margin="8dp" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -116,15 +137,23 @@
                     android:layout_height="wrap_content" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <Button
-                android:id="@+id/button_save"
-                android:layout_marginTop="24dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/save_tags" />
-
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/save_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:fabSize="normal"
+        android:src="@drawable/save_24px"
+        app:tint="@color/gmaGreenWhite"
+        app:shapeAppearanceOverlay="@style/SquareFAB"
+        android:backgroundTint="@color/gmaGreenDarkMono"
+        android:contentDescription="@string/cd_photo_library_button"
+        android:layout_margin="16dp" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

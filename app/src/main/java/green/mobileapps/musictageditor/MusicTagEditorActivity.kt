@@ -71,7 +71,7 @@ class MusicTagEditorActivity : AppCompatActivity() {
             setupUI()
         }
 
-        binding.buttonSave.setOnClickListener {
+        binding.saveFab.setOnClickListener {
             requestWritePermission()
         }
     }
@@ -105,7 +105,7 @@ class MusicTagEditorActivity : AppCompatActivity() {
                 loadArtIntoView(cachedBytes, cacheKey)
             } else {
                 // MISS: Show default and load in background
-                binding.editAlbumArt.setImageResource(R.drawable.default_album_art_144px)
+                binding.editAlbumArt.setImageResource(R.drawable.default_album_art_192px)
 
                 val bytes = getEmbeddedPicture(binding.editAlbumArt.context, file.uri)
 
@@ -117,7 +117,13 @@ class MusicTagEditorActivity : AppCompatActivity() {
                 loadArtIntoView(bytes, cacheKey)
             }
 
+            // on edit art click listeners
+
             binding.editAlbumArt.setOnClickListener {
+                pickImageLauncher.launch("image/*")
+            }
+
+            binding.editAlbumArtFab.setOnClickListener {
                 pickImageLauncher.launch("image/*")
             }
         }
@@ -125,10 +131,10 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
     private fun loadArtIntoView(bytes: ByteArray?, signatureKey: String) {
         Glide.with(this)
-            .load(bytes ?: R.drawable.default_album_art_144px) // Load bytes or fallback
+            .load(bytes ?: R.drawable.default_album_art_192px) // Load bytes or fallback
             .signature(com.bumptech.glide.signature.ObjectKey(signatureKey))
             .transform(CircleCrop())
-            .placeholder(R.drawable.default_album_art_144px)
+            .placeholder(R.drawable.default_album_art_192px)
             .dontAnimate()
             .into(binding.editAlbumArt)
     }

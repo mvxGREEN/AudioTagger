@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">@color/gmaTeal</color>
-    <color name="colorPrimaryDark">@color/gmaTealDarkMono</color>
-    <color name="colorAccent">@color/gmaTealDarkMono</color>
+    <color name="colorPrimary">@color/gmaEucalyptus</color>
+    <color name="colorPrimaryDark">@color/gmaEucalyptusDarkerer</color>
+    <color name="colorAccent">@color/gmaEucalyptusDarkMono</color>
 
     <color name="gmaTeal">#006883</color>
     <color name="gmaTealDarkMono">#002b37</color>
     <color name="gmaTealWhite">#f9feff</color>
+
+    <color name="gmaEucalyptusCompWhite">#fcfbfb</color>
+    <color name="gmaEucalyptusWhite">#fbfcfb</color>
+    <color name="gmaEucalyptus">#5F8575</color>
+    <color name="gmaEucalyptusDarkMono">#3f584e</color>
+    <color name="gmaEucalyptusDark">#3e574d</color>
+    <color name="gmaEucalyptusDarker">#26352f</color>
+    <color name="gmaEucalyptusDarkerer">#151e1a</color>
 
     <color name="gmaGreen">#1F6427</color>
     <color name="gmaGreenDarkMono">#0d2a10</color>

@@ -25,6 +25,10 @@
         <item name="cornerSize">16dp</item>
     </style>
 
+    <!-- FAB -->
+    <style name="SquareFAB" parent="">
+        <item name="cornerSize">12dp</item>
+    </style>
 
     <!-- Text Appearance -->
     <style name="TextAppMain" parent="TextAppearance.AppCompat">

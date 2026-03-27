@@ -29,4 +29,5 @@
     <string name="cd_album_art">Album Art</string>
     <string name="album_artwork">album artwork</string>
     <string name="save_tags">Save Tags</string>
+    <string name="cd_photo_library_button">photo library button\n</string>
 </resources>
