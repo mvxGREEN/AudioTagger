@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,6 +86,14 @@ class MusicTagEditorActivity : AppCompatActivity() {
             binding.etComposer.setText(file.composer)
             binding.etYear.setText(file.year?.toString() ?: "")
             binding.etTrackNumber.setText(file.track?.toString() ?: "")
+
+            // Handle Genre Visibility & Data based on OS Version
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                binding.layoutGenre.visibility = View.VISIBLE
+                binding.etGenre.setText(file.genre)
+            } else {
+                binding.layoutGenre.visibility = View.GONE
+            }
 
             Log.d("MusicTagEditorActivity", "albumId: ${file.albumId}")
 
@@ -212,7 +221,6 @@ class MusicTagEditorActivity : AppCompatActivity() {
                         val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
                         val tag = jaudioFile.tagOrCreateAndSetDefault
 
-                        // --- YOUR TAG SETTING LOGIC GOES HERE ---
                         fun setTagField(key: org.jaudiotagger.tag.FieldKey, value: String) {
                             if (value.isNotBlank()) tag.setField(key, value) else tag.deleteField(key)
                         }
@@ -221,7 +229,9 @@ class MusicTagEditorActivity : AppCompatActivity() {
                         setTagField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
                         setTagField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, binding.etAlbumArtist.text.toString())
                         setTagField(org.jaudiotagger.tag.FieldKey.TRACK, binding.etTrackNumber.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            setTagField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
+                        }
                         setTagField(org.jaudiotagger.tag.FieldKey.COMPOSER, binding.etComposer.text.toString())
                         setTagField(org.jaudiotagger.tag.FieldKey.YEAR, binding.etYear.text.toString())
 
