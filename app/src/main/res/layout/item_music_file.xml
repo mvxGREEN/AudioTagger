@@ -33,13 +33,13 @@
             android:id="@+id/text_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginHorizontal="16dp"
             android:textAppearance="?attr/textAppearanceTitleMedium"
             android:textSize="12sp"
             android:textColor="@color/titleColor"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_album_art"
-            app:layout_constraintEnd_toStartOf="@id/button_save_edit"
+            app:layout_constraintEnd_toEndOf="parent"
             tools:text="Song Title Here (feat. Artist)" />
 
         <TextView
@@ -51,60 +51,9 @@
             android:textColor="@color/subtitleColor"
             app:layout_constraintTop_toBottomOf="@id/text_title"
             app:layout_constraintStart_toStartOf="@id/text_title"
-            app:layout_constraintEnd_toStartOf="@id/button_save_edit"
+            app:layout_constraintEnd_toEndOf="parent"
             tools:text="Artist Name"
             app:layout_constraintBottom_toBottomOf="parent" />
-
-        <!-- Edit Mode: EditTexts (Initially GONE) -->
-        <EditText
-            android:id="@+id/edit_text_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:singleLine="true"
-            android:imeOptions="actionNext"
-            android:inputType="textCapWords"
-            android:textSize="12sp"
-            android:textColor="@color/titleColor"
-            android:visibility="gone"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/image_album_art"
-            app:layout_constraintEnd_toStartOf="@id/button_save_edit"
-            tools:text="Song Title Here (feat. Artist)"
-            tools:visibility="visible"/>
-
-        <EditText
-            android:id="@+id/edit_text_artist"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:singleLine="true"
-            android:imeOptions="actionDone"
-            android:inputType="textCapWords"
-            android:textSize="11sp"
-            android:textColor="@color/subtitleColor"
-            android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/edit_text_title"
-            app:layout_constraintStart_toStartOf="@id/edit_text_title"
-            app:layout_constraintEnd_toStartOf="@id/button_save_edit"
-            tools:text="Artist Name"
-            app:layout_constraintBottom_toBottomOf="parent"
-            tools:visibility="visible"/>
-
-        <!-- Save Button (Initially GONE) -->
-        <ImageButton
-            android:id="@+id/button_save_edit"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:contentDescription="Save Changes"
-            android:padding="8dp"
-            android:src="@drawable/save_24px"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:tint="@color/gmaTealDarkMono"
-            tools:visibility="visible"/>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -90,11 +90,6 @@ enum class SortBy { DATE_ADDED, TITLE, ARTIST, ALBUM, DURATION }
 data class SortState(val by: SortBy, val ascending: Boolean)
 // ---------------------------
 
-interface MusicEditListener {
-    fun startEditing(position: Int)
-    fun saveEditAndExit(audioFile: AudioFile, newTitle: String, newArtist: String)
-}
-
 private fun Cursor.getNullableString(columnName: String): String? {
     val index = getColumnIndex(columnName)
     return if (index != -1 && !isNull(index)) getString(index) else null
@@ -416,10 +411,6 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         return files
     }
 
-    // ... (Remainder of MainActivity logic: Sorting, Adapter, Activity methods unchanged) ...
-    // Note: Since I only modified AudioFile and loading, the rest of the class functions (Adapter, etc) are compatible.
-    // I am including the rest of the file structure implicitly to save space, but make sure to keep the Adapter and Activity classes.
-
     fun applySortAndFilter() {
         val sortedList = applySort(musicListFull, _sortState.value!!)
         val filteredList = applyFilter(sortedList, currentQuery)
@@ -473,19 +464,10 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// ... (MusicAdapter and MainActivity class follow, identical to previous logic except AudioFile changes don't impact them directly as they don't access the deleted fields) ...
-class MusicAdapter(private val activity: MainActivity, private var musicList: List<AudioFile>, private val editListener: MusicEditListener) :
+class MusicAdapter(private val activity: MainActivity, private var musicList: List<AudioFile>) :
     RecyclerView.Adapter<MusicAdapter.MusicViewHolder>() {
-    private val imageCache = mutableMapOf<Long, ByteArray?>()
     private val artworkCache = android.util.LruCache<Long, ByteArray>(10 * 1024 * 1024)
-    private var editingPosition: Int = RecyclerView.NO_POSITION
 
-    fun setEditingPosition(newPosition: Int) {
-        val oldPosition = editingPosition
-        editingPosition = newPosition
-        if (oldPosition != RecyclerView.NO_POSITION) notifyItemChanged(oldPosition)
-        if (newPosition != RecyclerView.NO_POSITION) notifyItemChanged(newPosition)
-    }
     private fun getEmbeddedPicture(context: Context, uri: Uri): ByteArray? {
         val retriever = android.media.MediaMetadataRetriever()
         return try {
@@ -497,7 +479,6 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             retriever.release()
         }
     }
-    fun getEditingPosition(): Int = editingPosition
 
     inner class MusicViewHolder(private val binding: ItemMusicFileBinding) : RecyclerView.ViewHolder(binding.root) {
         var job: Job? = null
@@ -510,52 +491,29 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 binding.textTitle.alpha = 0.95f;
                 binding.textArtist.alpha = 0.95f;
             }
-            val isEditing = adapterPosition == editingPosition
+            
             val fullTitleText = file.title
             val albumInfo = if (file.album != null) " • ${file.album}" else ""
             val fullArtistText = "${file.artist}$albumInfo"
 
-            if (isEditing) {
-                binding.textTitle.visibility = View.GONE
-                binding.textArtist.visibility = View.GONE
-                binding.editTextTitle.visibility = View.VISIBLE
-                binding.editTextArtist.visibility = View.VISIBLE
-                binding.buttonSaveEdit.visibility = View.VISIBLE
-                binding.editTextTitle.setText(file.title)
-                binding.editTextArtist.setText(file.artist)
-                binding.editTextTitle.requestFocus()
-                (itemView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-                    .showSoftInput(binding.editTextTitle, InputMethodManager.SHOW_IMPLICIT)
-            } else {
-                binding.textTitle.visibility = View.VISIBLE
-                binding.textArtist.visibility = View.VISIBLE
-                binding.editTextTitle.visibility = View.GONE
-                binding.editTextArtist.visibility = View.GONE
-                binding.buttonSaveEdit.visibility = View.GONE
-                binding.textTitle.text = fullTitleText
-                binding.textArtist.text = fullArtistText
-            }
+            binding.textTitle.visibility = View.VISIBLE
+            binding.textArtist.visibility = View.VISIBLE
+            binding.textTitle.text = fullTitleText
+            binding.textArtist.text = fullArtistText
 
-            val cacheKey = "${file.id}_${file.dateModified}" // Key changes when file is edited
+            val cacheKey = "${file.id}_${file.dateModified}" 
 
-            val cachedBytes = artworkCache.get(file.id) // Will be null now for edited files
+            val cachedBytes = artworkCache.get(file.id) 
 
             if (cachedBytes != null) {
                 loadArtIntoView(cachedBytes, cacheKey)
             } else {
-                // This block will now correctly execute for edited files
                 binding.imageAlbumArt.setImageResource(R.drawable.default_album_art_144px)
                 job = (itemView.context as? MainActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                     val bytes = getEmbeddedPicture(itemView.context, file.uri)
                     if (bytes != null) artworkCache.put(file.id, bytes)
 
-                    if (bytes != null) {
-                        artworkCache.put(file.id, bytes)
-                    }
-
-                    // Switch to Main thread to update UI
                     withContext(Dispatchers.Main) {
-                        // Check if this ViewHolder is still bound to the same file
                         if (isActive) {
                             loadArtIntoView(bytes, cacheKey)
                         }
@@ -563,18 +521,13 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
                 }
             }
             binding.root.setOnClickListener {
-                if (!isEditing) activity.openTagEditor(file)
-            }
-            binding.buttonSaveEdit.setOnClickListener {
-                val newTitle = binding.editTextTitle.text.toString().trim()
-                val newArtist = binding.editTextArtist.text.toString().trim()
-                editListener.saveEditAndExit(file, newTitle, newArtist)
+                activity.openTagEditor(file)
             }
         }
 
         private fun loadArtIntoView(bytes: ByteArray?, signatureKey: String) {
             Glide.with(itemView.context)
-                .load(bytes ?: R.drawable.default_album_art_144px) // Load bytes or fallback
+                .load(bytes ?: R.drawable.default_album_art_144px) 
                 .signature(com.bumptech.glide.signature.ObjectKey(signatureKey))
                 .transform(CircleCrop())
                 .placeholder(R.drawable.default_album_art_144px)
@@ -590,20 +543,15 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
         holder.bind(musicList[position], position)
     }
     override fun getItemCount(): Int = musicList.size
-    // In MainActivity.kt -> MusicAdapter class
 
     fun updateList(newList: List<AudioFile>) {
-        // 1. Detect changed items and clear their cached artwork
         newList.forEach { newItem ->
             val oldItem = musicList.find { it.id == newItem.id }
-
-            // If the file exists but the timestamp is different, the content changed
             if (oldItem != null && oldItem.dateModified != newItem.dateModified) {
                 artworkCache.remove(newItem.id)
             }
         }
 
-        // 2. Proceed with your existing DiffUtil logic
         val diffCallback = object : androidx.recyclerview.widget.DiffUtil.Callback() {
             override fun getOldListSize(): Int = musicList.size
             override fun getNewListSize(): Int = newList.size
@@ -615,7 +563,6 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean {
                 val oldItem = musicList[oldPos]
                 val newItem = newList[newPos]
-                // Ensure dateModified is part of this check so onBindViewHolder is triggered
                 return oldItem.title == newItem.title &&
                         oldItem.artist == newItem.artist &&
                         oldItem.dateModified == newItem.dateModified
@@ -629,7 +576,7 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
     fun getCurrentList(): List<AudioFile> = musicList
 }
 
-class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryTextListener, MusicEditListener {
+class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryTextListener {
     private var job: Job = Job()
     override val coroutineContext: CoroutineContext get() = Dispatchers.Main + job
     private lateinit var binding: MainActivityBinding
@@ -637,7 +584,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     public lateinit var musicAdapter: MusicAdapter
     private lateinit var sortButton: ImageButton
     private lateinit var sortDirectionButton: ImageButton
-    private lateinit var backButton: ImageButton
     private val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
     } else {
@@ -645,19 +591,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     }
     private val PREFS_NAME = "TaggerPrefs"
     private val KEY_APP_OPEN_COUNT = "AppOpenCount"
-    private val notificationPermission = Manifest.permission.POST_NOTIFICATIONS
-    private val requestNotificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-        viewModel.loadAudioFiles(applicationContext)
-    }
-    private val requestWritePermissionLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == RESULT_OK) executePendingMetadataUpdate() else {
-            Toast.makeText(this, "Permission denied.", Toast.LENGTH_SHORT).show()
-            exitEditingMode()
-        }
-    }
-    private var pendingUpdateFile: AudioFile? = null
-    private var pendingUpdateTitle: String? = null
-    private var pendingUpdateArtist: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -667,7 +600,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         setSupportActionBar(binding.toolbarSearch)
         sortButton = binding.buttonSort
         sortDirectionButton = binding.buttonSortDirection
-        backButton = binding.buttonBackEdit
         setupRecyclerView()
         setupSearchView()
         setupSortButton()
@@ -716,7 +648,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     override fun onResume() {
         super.onResume()
         hideKeyboardAndClearFocus()
-        if (musicAdapter.getEditingPosition() != RecyclerView.NO_POSITION) exitEditingMode()
     }
     private fun setupObservers() {
         viewModel.filteredList.observe(this) { audioList ->
@@ -733,7 +664,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         viewModel.isLoading.observe(this) { binding.swipeRefreshLayout.isRefreshing = it }
     }
     private fun setupRecyclerView() {
-        musicAdapter = MusicAdapter(this, emptyList(), this)
+        musicAdapter = MusicAdapter(this, emptyList())
         binding.recyclerViewMusic.adapter = musicAdapter
         FastScrollerBuilder(binding.recyclerViewMusic).useMd2Style().build()
     }
@@ -745,30 +676,19 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     private fun checkAndShowInAppReview() {
         val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val currentCount = sharedPrefs.getInt(KEY_APP_OPEN_COUNT, 0) + 1
-
-        // Save the new count immediately
         sharedPrefs.edit().putInt(KEY_APP_OPEN_COUNT, currentCount).apply()
 
-        Log.d("MainActivity", "App Open Count: $currentCount")
-
-        // Trigger only on the 3rd open
         if (currentCount == 3) {
             val manager = ReviewManagerFactory.create(this)
             val request = manager.requestReviewFlow()
-
             request.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // We got the ReviewInfo object
                     val reviewInfo = task.result
                     val flow = manager.launchReviewFlow(this, reviewInfo)
                     flow.addOnCompleteListener { _ ->
-                        // The flow has finished. The API does not indicate whether the user
-                        // reviewed or not, or even if the review dialog was shown.
-                        // Thus, no matter the result, we continue our app flow.
                         Log.d("MainActivity", "In-App Review flow completed")
                     }
                 } else {
-                    // There was some problem, log or handle the error code.
                     Log.e("MainActivity", "Review info request failed", task.exception)
                 }
             }
@@ -791,91 +711,13 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         val intent = Intent(this, MusicTagEditorActivity::class.java).apply { putExtra("audio_file", file) }
         startActivity(intent)
     }
-    override fun startEditing(position: Int) {
-        val viewHolder = binding.recyclerViewMusic.findViewHolderForAdapterPosition(position)
-        if (viewHolder != null) {
-            binding.searchViewMusic.visibility = View.GONE
-            binding.buttonSort.visibility = View.GONE
-            binding.buttonSortDirection.visibility = View.GONE
-            binding.buttonBackEdit.visibility = View.VISIBLE
-            binding.textEditTitle.visibility = View.VISIBLE
-            binding.searchViewMusic.isEnabled = false
-            binding.searchViewMusic.clearFocus()
-            musicAdapter.setEditingPosition(position)
-            viewHolder.itemView.findViewById<EditText>(R.id.edit_text_title)?.requestFocus()
-            Toast.makeText(this, "Editing: Click save or back to finish.", Toast.LENGTH_LONG).show()
-        }
-    }
-    override fun saveEditAndExit(audioFile: AudioFile, newTitle: String, newArtist: String) {
-        if (newTitle == audioFile.title && newArtist == audioFile.artist) {
-            exitEditingMode()
-            return
-        }
-        pendingUpdateFile = audioFile
-        pendingUpdateTitle = newTitle
-        pendingUpdateArtist = newArtist
-        requestMetadataWritePermission(listOf(audioFile.uri))
-    }
-    private fun requestMetadataWritePermission(uris: List<Uri>) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val pendingIntent = MediaStore.createWriteRequest(contentResolver, uris)
-            requestWritePermissionLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
-        } else {
-            executePendingMetadataUpdate()
-        }
-    }
-    private fun executePendingMetadataUpdate() {
-        val file = pendingUpdateFile ?: return
-        val newTitle = pendingUpdateTitle ?: return
-        val newArtist = pendingUpdateArtist ?: return
-        pendingUpdateFile = null
-        pendingUpdateTitle = null
-        pendingUpdateArtist = null
-        launch(Dispatchers.IO) {
-            try {
-                val mimeType = contentResolver.getType(file.uri) ?: "audio/mpeg"
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Audio.Media.TITLE, newTitle)
-                    put(MediaStore.Audio.Media.ARTIST, newArtist)
-                    put(MediaStore.Audio.Media.DATE_MODIFIED, System.currentTimeMillis() / 1000)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                }
-                delay(500)
-                val rowsUpdated = contentResolver.update(file.uri, contentValues, null, null)
-                withContext(Dispatchers.Main) {
-                    if (rowsUpdated > 0) {
-                        Toast.makeText(this@MainActivity, "Metadata updated successfully!", Toast.LENGTH_SHORT).show()
-                        val updatedFile = file.copy(title = newTitle, artist = newArtist)
-                        PlaylistRepository.updateFile(updatedFile)
-                    } else {
-                        Toast.makeText(this@MainActivity, "Update failed.", Toast.LENGTH_LONG).show()
-                    }
-                    exitEditingMode()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Fatal Error.", Toast.LENGTH_LONG).show()
-                    exitEditingMode()
-                }
-            }
-        }
-    }
-    private fun exitEditingMode() {
-        hideKeyboardAndClearFocus()
-        musicAdapter.setEditingPosition(RecyclerView.NO_POSITION)
-        binding.searchViewMusic.visibility = View.VISIBLE
-        binding.buttonSort.visibility = View.VISIBLE
-        binding.buttonSortDirection.visibility = View.VISIBLE
-        binding.buttonBackEdit.visibility = View.GONE
-        binding.textEditTitle.visibility = View.GONE
-        binding.searchViewMusic.isEnabled = true
-    }
+
     override fun onQueryTextSubmit(query: String?): Boolean {
         hideKeyboardAndClearFocus()
         return true
     }
     override fun onQueryTextChange(newText: String?): Boolean {
-        if (binding.searchViewMusic.isEnabled) viewModel.filterList(newText.orEmpty())
+        viewModel.filterList(newText.orEmpty())
         return true
     }
     private fun showStatus(message: String) {
