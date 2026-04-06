@@ -8,6 +8,11 @@
     <color name="gmaTealDarkMono">#002b37</color>
     <color name="gmaTealWhite">#f9feff</color>
 
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    <color name="accent_border">#FFFFFF</color>
+    <color name="divider">#404040</color>
+
     <color name="gmaEucalyptusCompWhite">#fcfbfb</color>
     <color name="gmaEucalyptusWhite">#fbfcfb</color>
     <color name="gmaEucalyptus">#5F8575</color>

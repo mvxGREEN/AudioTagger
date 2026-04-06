@@ -30,4 +30,6 @@
     <string name="album_artwork">album artwork</string>
     <string name="save_tags">Save Tags</string>
     <string name="cd_photo_library_button">photo library button\n</string>
+    <string name="paste_art_url">Paste Art URL…</string>
+    <string name="clear_button">Clear Button</string>
 </resources>

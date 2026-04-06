@@ -1,5 +1,6 @@
 package green.mobileapps.musictageditor
 
+import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -159,6 +160,24 @@ class MusicTagEditorActivity : AppCompatActivity() {
             intentSenderLauncher.launch(request)
         } else {
             saveMetadata()
+        }
+    }
+
+    fun onPasteClick(v: View?) {
+        // 1. Force the EditText to take focus so the TextWatcher accepts the input
+        binding.etMainInput.requestFocus()
+
+        binding.etMainInput.setText("")
+        val clipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        var primaryStr = ""
+        val primaryClip = clipboardManager.primaryClip
+
+        if (primaryClip != null && primaryClip.itemCount > 0) {
+            primaryStr = primaryClip.getItemAt(0).text.toString().trim()
+            binding.etMainInput.setText(primaryStr) // 2. Now it will trigger the TextWatcher properly
+        } else {
+            Toast.makeText(this@MusicTagEditorActivity, "Please copy an image URL", Toast.LENGTH_LONG).show()
+            binding.etMainInput.setText(primaryStr)
         }
     }
 
