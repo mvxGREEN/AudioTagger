@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@android:color/black"
     tools:context=".MusicTagEditorActivity"
     android:padding="16dp">
 
@@ -108,88 +109,113 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:hint="Title">
+                android:hint="Title"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_title"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Artist">
+                android:hint="Artist"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_artist"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Album">
+                android:hint="Album"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_album"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Album Artist">
+                android:hint="Album Artist"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_album_artist"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Track Number">
+                android:hint="Track Number"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_track_number"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/layout_genre"  android:layout_width="match_parent"
+                android:id="@+id/layout_genre"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Genre">
+                android:hint="Genre"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_genre"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Composer">
+                android:hint="Composer"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_composer"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Year">
+                android:hint="Year"
+                android:theme="@style/ThemeOverlay.MaterialComponents.Dark"
+                app:boxBackgroundColor="@android:color/transparent">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_year"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:textColor="@android:color/white" />
             </com.google.android.material.textfield.TextInputLayout>
 
         </LinearLayout>
