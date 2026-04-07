@@ -88,4 +88,6 @@ dependencies {
     implementation(libs.firebase.crashlytics)
 
     implementation(libs.review.ktx)
+
+    implementation("io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1")
 }

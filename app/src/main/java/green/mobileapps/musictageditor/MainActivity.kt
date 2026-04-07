@@ -710,9 +710,18 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     }
 
 
+    // 1. Register a listener to detect when the Tag Editor finishes
+    private val tagEditorLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // 2. If it signals a success (a new file was copied), silently refresh the list!
+            viewModel.loadAudioFiles(applicationContext)
+        }
+    }
+
+    // use the launcher instead of the standard startActivity()
     fun openTagEditor(file: AudioFile) {
         val intent = Intent(this, MusicTagEditorActivity::class.java).apply { putExtra("audio_file", file) }
-        startActivity(intent)
+        tagEditorLauncher.launch(intent)
     }
 
     override fun onQueryTextSubmit(query: String?): Boolean {

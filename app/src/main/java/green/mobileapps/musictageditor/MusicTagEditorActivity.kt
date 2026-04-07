@@ -30,10 +30,18 @@ class MusicTagEditorActivity : AppCompatActivity() {
     private lateinit var binding: TagEditorActivityBinding
     private var audioFile: AudioFile? = null
     private val artworkCache = android.util.LruCache<Long, ByteArray>(10 * 1024 * 1024)
+    private var selectedImageUri: Uri? = null
 
     private val intentSenderLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             saveMetadata()
+        }
+    }
+
+    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            Glide.with(this).load(it).into(binding.editAlbumArt)
+            selectedImageUri = it
         }
     }
 
@@ -124,7 +132,6 @@ class MusicTagEditorActivity : AppCompatActivity() {
             }
 
             // on edit art click listeners
-
             binding.editAlbumArt.setOnClickListener {
                 pickImageLauncher.launch("image/*")
             }
@@ -170,6 +177,7 @@ class MusicTagEditorActivity : AppCompatActivity() {
 
                     killKeyboard()
 
+                    // Launch a coroutine to handle network operations off the Main Thread
                     lifecycleScope.launch(Dispatchers.IO) {
                         if (isInternetAvailable()) {
                             try {
@@ -356,6 +364,33 @@ class MusicTagEditorActivity : AppCompatActivity() {
         return "mp3"
     }
 
+    private fun applyTagsToJAudioFile(tag: org.jaudiotagger.tag.Tag) {
+        fun setTagField(key: org.jaudiotagger.tag.FieldKey, value: String) {
+            if (value.isNotBlank()) tag.setField(key, value) else tag.deleteField(key)
+        }
+
+        setTagField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, binding.etAlbumArtist.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.TRACK, binding.etTrackNumber.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.COMPOSER, binding.etComposer.text.toString())
+        setTagField(org.jaudiotagger.tag.FieldKey.YEAR, binding.etYear.text.toString())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setTagField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
+        }
+
+        selectedImageUri?.let { imageUri ->
+            getCompressedBytes(imageUri)?.let { imageBytes ->
+                val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
+                artwork.binaryData = imageBytes
+                tag.deleteArtworkField()
+                tag.setField(artwork)
+            }
+        }
+    }
+
     private fun saveMetadata() {
         val file = audioFile ?: return
 
@@ -377,30 +412,7 @@ class MusicTagEditorActivity : AppCompatActivity() {
                         val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(tempFile)
                         val tag = jaudioFile.tagOrCreateAndSetDefault
 
-                        fun setTagField(key: org.jaudiotagger.tag.FieldKey, value: String) {
-                            if (value.isNotBlank()) tag.setField(key, value) else tag.deleteField(key)
-                        }
-                        setTagField(org.jaudiotagger.tag.FieldKey.TITLE, binding.etTitle.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.ARTIST, binding.etArtist.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM, binding.etAlbum.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.ALBUM_ARTIST, binding.etAlbumArtist.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.TRACK, binding.etTrackNumber.text.toString())
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            setTagField(org.jaudiotagger.tag.FieldKey.GENRE, binding.etGenre.text.toString())
-                        }
-                        setTagField(org.jaudiotagger.tag.FieldKey.COMPOSER, binding.etComposer.text.toString())
-                        setTagField(org.jaudiotagger.tag.FieldKey.YEAR, binding.etYear.text.toString())
-
-                        selectedImageUri?.let { imageUri ->
-                            getCompressedBytes(imageUri)?.let { imageBytes ->
-                                val artwork = org.jaudiotagger.tag.images.ArtworkFactory.getNew()
-                                artwork.binaryData = imageBytes
-                                tag.deleteArtworkField()
-                                tag.setField(artwork)
-                            }
-                        }
-                        // ----------------------------------------
-
+                        applyTagsToJAudioFile(tag)
                         jaudioFile.commit()
 
                     } catch (e: Exception) {
@@ -425,32 +437,123 @@ class MusicTagEditorActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e("MusicTagEditorActivity", "Error saving", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MusicTagEditorActivity, "Save Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                    val msg = e.message ?: ""
+                    // Intercept our specific error message
+                    if (msg.contains("Cannot edit file type")) {
+                        showConversionDialog(file)
+                    } else {
+                        Toast.makeText(this@MusicTagEditorActivity, "Save Failed: $msg", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
     }
 
-    private suspend fun getEmbeddedPicture(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
-        val retriever = android.media.MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(this@MusicTagEditorActivity, uri)
-            retriever.embeddedPicture
-        } catch (e: Exception) {
-            null
-        } finally {
-            retriever.release()
+    private fun showConversionDialog(file: AudioFile) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Format Not Supported")
+            .setMessage("This file format does not support tags. Would you like to convert it and save an MP3 copy instead?")
+            .setPositiveButton("Save as MP3") { _, _ ->
+                convertAndSaveAsMp3(file)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun convertAndSaveAsMp3(originalFile: AudioFile) {
+        Toast.makeText(this, "Converting to MP3... Please wait.", Toast.LENGTH_LONG).show()
+        binding.saveFab.isEnabled = false
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // 1. Copy source file from URI to a local temporary cache file
+                val sourceFile = java.io.File(cacheDir, "source_audio_${System.currentTimeMillis()}")
+                contentResolver.openInputStream(originalFile.uri)?.use { input ->
+                    sourceFile.outputStream().use { output -> input.copyTo(output) }
+                }
+
+                // 2. Define the output file location for the MP3
+                val mp3OutputFile = java.io.File(cacheDir, "converted_${System.currentTimeMillis()}.mp3")
+
+                // 3. Run FFmpeg Conversion (Audio only, 192kbps)
+                val session = com.arthenica.ffmpegkit.FFmpegKit.execute("-i '${sourceFile.absolutePath}' -b:a 192k '${mp3OutputFile.absolutePath}'")
+
+                if (com.arthenica.ffmpegkit.ReturnCode.isSuccess(session.returnCode)) {
+
+                    // 4. Apply metadata to the brand new MP3 file
+                    val jaudioFile = org.jaudiotagger.audio.AudioFileIO.read(mp3OutputFile)
+                    val tag = jaudioFile.tagOrCreateAndSetDefault
+                    applyTagsToJAudioFile(tag)
+                    jaudioFile.commit()
+
+                    // 5. Insert the new MP3 into the MediaStore securely
+                    insertNewAudioToMediaStore(mp3OutputFile)
+
+                } else {
+                    throw Exception("FFmpeg conversion failed.")
+                }
+
+                // Cleanup temp files
+                sourceFile.delete()
+                mp3OutputFile.delete()
+
+            } catch (e: Exception) {
+                Log.e("TagEditor", "Conversion failed", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MusicTagEditorActivity, "Conversion Failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    binding.saveFab.isEnabled = true
+                }
+            }
         }
     }
 
-    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            Glide.with(this).load(it).into(binding.editAlbumArt)
-            selectedImageUri = it
+    private suspend fun insertNewAudioToMediaStore(audioFile: java.io.File) {
+        val titleInput = binding.etTitle.text.toString().ifBlank { "Unknown Title" }
+        val artistInput = binding.etArtist.text.toString().ifBlank { "Unknown Artist" }
+
+        val values = ContentValues().apply {
+            put(MediaStore.Audio.Media.DISPLAY_NAME, "${artistInput} - ${titleInput}.mp3")
+            put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+            put(MediaStore.Audio.Media.TITLE, titleInput)
+            put(MediaStore.Audio.Media.ARTIST, artistInput)
+            put(MediaStore.Audio.Media.ALBUM, binding.etAlbum.text.toString())
+            put(MediaStore.Audio.Media.YEAR, binding.etYear.text.toString().toIntOrNull())
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/Converted")
+                put(MediaStore.Audio.Media.IS_PENDING, 1)
+            }
+        }
+
+        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        }
+
+        val newUri = contentResolver.insert(collection, values) ?: throw Exception("Failed to create MediaStore entry")
+
+        // Write the physical bytes to the new URI
+        contentResolver.openOutputStream(newUri)?.use { output ->
+            audioFile.inputStream().use { input -> input.copyTo(output) }
+        }
+
+        // Release the pending status so Android media scanners can see it
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+            contentResolver.update(newUri, values, null, null)
+        }
+
+        withContext(Dispatchers.Main) {
+            Toast.makeText(this@MusicTagEditorActivity, "Converted and saved as a new file!", Toast.LENGTH_SHORT).show()
+            setResult(RESULT_OK)
+            finish()
         }
     }
-
-    private var selectedImageUri: Uri? = null
 
     private fun getCompressedBytes(uri: Uri): ByteArray? {
         val inputStream = contentResolver.openInputStream(uri) ?: return null
