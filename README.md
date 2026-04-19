@@ -39,7 +39,7 @@ Supports ALL audio file types! Converts file types that do not support tagging t
 ### Building the Project
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/mvxGREEN/Tagger.git](https://github.com/mvxGREEN/AudioTagger.git)
+   git clone https://github.com/mvxGREEN/AudioTagger.git
    ```
 2. Open the project in **Android Studio**.
 3. Let Gradle sync the project dependencies.
