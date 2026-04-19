@@ -29,7 +29,17 @@ Supports ALL audio file types! Converts file types that do not support tagging t
 * **Framework**: Android SDK
 * **Build System**: Gradle (Kotlin DSL)
 
-## 🚀 Getting Started
+## ⚡️ Quick Start:
+
+1. Download latest APK from [Releases](https://github.com/mvxGREEN/AudioTagger/releases) to an Android device.
+
+2. Open APK file to install.
+
+3. Done!  Open **Tagger** app to start editing audio tags.
+
+## 💻 Build From Source Code:
+
+To build and run this project locally, you will need [Android Studio](https://developer.android.com/studio) installed on your machine.
 
 ### Prerequisites
 * Android Studio (latest recommended)
