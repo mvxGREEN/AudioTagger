@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -83,11 +81,5 @@ dependencies {
 
     implementation(libs.jaudiotagger)
 
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
-
-    implementation(libs.review.ktx)
-
-    implementation("io.github.maxrave-dev:ffmpeg-kit-audio:6.0.1")
+    implementation(libs.ffmpeg.kit.audio)
 }

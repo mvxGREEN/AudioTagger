@@ -20,7 +20,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.google.firebase.analytics.FirebaseAnalytics
 import green.mobileapps.musictageditor.databinding.TagEditorActivityBinding
 import kotlinx.coroutines.*
 import java.net.InetAddress
@@ -161,19 +160,6 @@ class MusicTagEditorActivity : AppCompatActivity() {
                         input = input.substring(input.lastIndexOf("https://"))
                     }
                     val inputText = input
-
-                    var domain = input.substring(input.indexOf("https://") + 8)
-                    if (domain.contains("/")) {
-                        domain = domain.substring(0, domain.indexOf("/"))
-                    }
-                    try {
-                        val bundle = Bundle().apply {
-                            putString("app_name", "tagger")
-                            putString("input", input)
-                            putString("domain", domain)
-                        }
-                        FirebaseAnalytics.getInstance(this@MusicTagEditorActivity).logEvent("valid_input", bundle)
-                    } catch (ignored: Exception) {}
 
                     killKeyboard()
 

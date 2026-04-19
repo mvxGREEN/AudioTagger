@@ -7,9 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.ContentUris
-import android.content.ContentValues
 import android.database.Cursor
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -23,22 +21,15 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.PopupMenu
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -47,25 +38,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.delay
 import kotlin.coroutines.CoroutineContext
 import androidx.activity.addCallback
-import androidx.annotation.RequiresApi
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
 import green.mobileapps.musictageditor.databinding.ItemMusicFileBinding
 import green.mobileapps.musictageditor.databinding.MainActivityBinding
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import me.zhanghai.android.fastscroll.FastScrollerBuilder
 import kotlin.apply
 import kotlin.collections.filter
 import kotlin.collections.find
-import kotlin.collections.getOrNull
 import kotlin.collections.indexOfFirst
 import kotlin.collections.isNotEmpty
 import kotlin.collections.orEmpty
@@ -79,10 +61,8 @@ import kotlin.text.contains
 import kotlin.text.isBlank
 import kotlin.text.lowercase
 import kotlin.text.orEmpty
-import kotlin.text.trim
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.isActive
 
 // --- SORTING DEFINITIONS ---
@@ -611,7 +591,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         setupSwipeRefresh()
         setupObservers()
         checkPermissions()
-        checkAndShowInAppReview()
     }
     private fun setupSystemBackPressHandler() {
         onBackPressedDispatcher.addCallback(this) {
@@ -676,28 +655,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         binding.swipeRefreshLayout.setOnRefreshListener { viewModel.loadAudioFiles(applicationContext) }
     }
 
-    private fun checkAndShowInAppReview() {
-        val sharedPrefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val currentCount = sharedPrefs.getInt(KEY_APP_OPEN_COUNT, 0) + 1
-        sharedPrefs.edit().putInt(KEY_APP_OPEN_COUNT, currentCount).apply()
-
-        if (currentCount == 3) {
-            val manager = ReviewManagerFactory.create(this)
-            val request = manager.requestReviewFlow()
-            request.addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val reviewInfo = task.result
-                    val flow = manager.launchReviewFlow(this, reviewInfo)
-                    flow.addOnCompleteListener { _ ->
-                        Log.d("MainActivity", "In-App Review flow completed")
-                    }
-                } else {
-                    Log.e("MainActivity", "Review info request failed", task.exception)
-                }
-            }
-        }
-    }
-
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, mediaPermission) == PackageManager.PERMISSION_GRANTED) {
             viewModel.loadAudioFiles(applicationContext)
@@ -752,18 +709,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         return true
     }
     override fun onOptionsItemSelected(item: MenuItem): Boolean { return super.onOptionsItemSelected(item) }
+
     fun onAboutClick(menuItem: MenuItem?) {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mobileapps.green/")))
     }
-    fun onPrivacyClick(menuItem: MenuItem?) {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://mobileapps.green/privacy-policy")))
-    }
-    fun onRateClick(menuItem: MenuItem?) {
-        val appPackageName = getPackageName()
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + appPackageName)))
-        } catch (anfe: ActivityNotFoundException) {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + appPackageName)))
-        }
-    }
+
 }
