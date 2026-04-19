@@ -45,6 +45,10 @@ Supports ALL audio file types! Converts file types that do not support tagging t
 3. Let Gradle sync the project dependencies.
 4. Click **Run** (Shift + F10) to build and deploy the app to your emulator or connected physical device.
 
+5. ## 🤝 Contributing
+Contributions, issues, and feature requests are welcome! 
+Feel free to check the [issues page](https://github.com/mvxGREEN/AudioTagger/issues) if you want to contribute. 
+
 ## 📄 License
 
 This project is licensed under the **WTFPL** (Do What The F*ck You Want To Public License). 
