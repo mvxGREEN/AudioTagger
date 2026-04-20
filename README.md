@@ -11,9 +11,19 @@
 
 **AudioTagger** is an ID3 audio tag editor app built natively for Android.  
 
-Quickly modify and manage metadata (ID3 tags) and album art of all audio files on your mobile devices.  
+Quickly modify and manage metadata (ID3 tags) and album art of all audio files on your mobile devices.
 
-Supports ALL audio file types! Converts file types that do not support tagging to MP3.
+## 📸 Screenshots
+
+<p align="center">
+  <img src="assets/Screenshot 1.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 2.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 3.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 4.png" width="180"/>
+</p>
 
 ## ✨ Features
 
@@ -32,18 +42,6 @@ Supports ALL audio file types! Converts file types that do not support tagging t
 * **Language**: [Kotlin](https://kotlinlang.org/)
 * **Framework**: Android SDK
 * **Build System**: Gradle (Kotlin DSL)
-
-## 📸 Screenshots
-
-<p align="center">
-  <img src="assets/Screenshot 1.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 2.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 3.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 4.png" width="180"/>
-</p>
 
 ## ⚡️ Quick Start:
 
