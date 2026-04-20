@@ -2,9 +2,9 @@
   <img src="assets/launcher_tagger_round.png" alt="Tagger Round App Icon" width="180"/>
 </p>
 
-# AudioTagger 🎵🏷️
+# Tagger 🎵🏷️
 
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/AudioTagger/actions)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/Tagger/actions)
 [![License: WTFPL](https://img.shields.io/badge/License-WTFPL-brightgreen.svg)](http://www.wtfpl.net/about/)
 [![Language: Kotlin](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org/)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android-3DDC84.svg)](https://developer.android.com/)
@@ -45,7 +45,7 @@ Quickly modify and manage metadata (ID3 tags) and album art of all audio files o
 
 ## ⚡️ Quick Start:
 
-1. Download latest APK from [Releases](https://github.com/mvxGREEN/AudioTagger/releases) to an Android device.
+1. Download latest APK from [Releases](https://github.com/mvxGREEN/Tagger/releases) to an Android device.
 
 2. Open APK file to install.
 
@@ -63,7 +63,7 @@ To build and run this project locally, you will need [Android Studio](https://de
 ### Building the Project
 1. Clone the repository:
    ```bash
-   git clone https://github.com/mvxGREEN/AudioTagger.git
+   git clone https://github.com/mvxGREEN/Tagger.git
    ```
 2. Open the project in **Android Studio**.
 3. Let Gradle sync the project dependencies.
@@ -71,7 +71,7 @@ To build and run this project locally, you will need [Android Studio](https://de
 
 5. ## 🤝 Contributing
 Contributions, issues, and feature requests are welcome! 
-Feel free to check the [issues page](https://github.com/mvxGREEN/AudioTagger/issues) if you want to contribute. 
+Feel free to check the [issues page](https://github.com/mvxGREEN/Tagger/issues) if you want to contribute. 
 
 ## 📄 License
 
