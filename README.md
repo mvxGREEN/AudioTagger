@@ -33,7 +33,7 @@ Supports ALL audio file types! Converts file types that do not support tagging t
 * **Framework**: Android SDK
 * **Build System**: Gradle (Kotlin DSL)
 
-* ## 📸 Screenshots
+## 📸 Screenshots
 
 <p align="center">
   <img src="assets/Screenshot 1.png" width="180"/>
